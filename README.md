@@ -47,7 +47,7 @@ This extension:
 
 ## License
 
-See LICENSE
+See [LICENSE](LICENSE).
 
 ## Author
 
@@ -56,3 +56,11 @@ See LICENSE
 If you find this extension helpful, consider supporting its development:
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/default-yellow.png)](https://buymeacoffee.com/thejjw)
+
+## Third-Party Libraries
+
+This extension uses the following open-source libraries:
+
+- **[JSZip](https://stuk.github.io/jszip/)** v3.10.1 - For creating ZIP archives of bulk downloads
+  - License: MIT
+  - Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso

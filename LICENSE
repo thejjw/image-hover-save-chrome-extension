@@ -17,3 +17,15 @@ Portions Copyright (c) 2025 Jaewoo Jeon (@thejjw)
 being the original software.
 
 3. This notice may not be removed or altered from any source distribution.
+
+===============================================================================
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+
+This project incorporates components from the projects listed below:
+
+JSZip v3.10.1
+License: MIT
+Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
+Source: https://github.com/Stuk/jszip
+Used for: Creating ZIP archives for bulk image downloads
+===============================================================================
