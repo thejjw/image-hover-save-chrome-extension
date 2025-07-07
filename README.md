@@ -1,6 +1,6 @@
 # Image Hover Save Chrome Extension
 
-A minimal Chrome extension that allows you to quickly save images by hovering over them (and more). When you hover over an image for a configurable amount of time, a download button appears that lets you save the image directly to your default downloads folder.
+A Chrome extension that allows you to quickly save images by hovering over them (and more). When you hover over an image for a configurable amount of time, a download button appears that lets you save the image directly to your default downloads folder.
 
 ## Features
 
@@ -8,7 +8,6 @@ A minimal Chrome extension that allows you to quickly save images by hovering ov
 - **Configurable delay**: Adjust how long to hover before the button appears (0.5s to 3s)
 - **Smart filtering**: Only shows download button for images larger than predefined dimensions
 - **No save dialog**: Downloads directly to your default downloads folder
-- **Clean UI**: Minimal, unobtrusive download button overlay
 - **Enable/disable**: Toggle the extension on/off from the popup
 - **Badge indicators**: Real-time status badges on extension icon
 - **Bulk download**: ZIP download for all images on a page
