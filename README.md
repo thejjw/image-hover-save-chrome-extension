@@ -51,7 +51,7 @@ See [LICENSE](LICENSE).
 
 ## Author
 
-- [@thejjw](https://github.com/thejjw)
+- Jaewoo Jeon [@thejjw](https://github.com/thejjw)
 
 If you find this extension helpful, consider supporting its development:
 
