@@ -1,6 +1,9 @@
 // Image Hover Save Extension - Popup Script
 // Copyright (c) Jaewoo Jeon (@thejjw) and Image Hover Save Extension Contributors
 // SPDX-License-Identifier: zlib-acknowledgement
+//
+// Third-party libraries:
+// - JSZip v3.10.1 (MIT) - Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
 
 // Extension version - update this when releasing new versions
 const EXTENSION_VERSION = '1.0.0';
