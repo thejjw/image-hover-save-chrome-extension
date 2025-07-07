@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Hover Save Settings</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Image Hover Save</h1>
+            <p>Quick image download on hover</p>
+        </header>
+
+        <main>
+            <div class="setting-group">
+                <label class="simple-checkbox">
+                    <input type="checkbox" id="enabledToggle" checked>
+                    Enable extension
+                </label>
+            </div>
+
+            <div class="setting-group">
+                <label for="hoverDelay">Hover delay:</label>
+                <div class="delay-controls">
+                    <input type="range" id="hoverDelay" min="500" max="3000" step="100" value="1500">
+                    <span id="delayValue">1.5s</span>
+                </div>
+                <p class="help-text">How long to hover before showing download button</p>
+            </div>
+
+            <div class="setting-group">
+                <label>Basic image detection:</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="detectImg" checked>
+                        <span>IMG tags</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="detectVideo" checked>
+                        <span>Video elements</span>
+                    </label>
+                </div>
+                <p class="help-text">Choose basic image and video detection preference</p>
+            </div>
+
+            <div class="setting-group">
+                <div class="download-mode-header">
+                    <span class="download-mode-indicator" id="downloadModeIndicator">Download mode: <strong>Normal</strong></span>
+                    <button type="button" class="expand-button" id="expandDownloadModes">⚙️ Advanced</button>
+                </div>
+                <div class="download-mode-section collapsed" id="downloadModeSection">
+                    <p class="help-text">Experimental modes for more restrictive sites. YMMV.</p>
+                    <label>🧪 Experimental download modes:</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="downloadMode" id="downloadModeNormal" value="normal" checked>
+                            <span>Normal download (default)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="downloadMode" id="downloadModeCache" value="cache">
+                            <span>Try cache-based downloads</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="downloadMode" id="downloadModeCanvas" value="canvas">
+                            <span>Try canvas extraction</span>
+                        </label>
+                    </div>
+                    
+                    <div class="advanced-detection-group">
+                        <label>Advanced detection types:</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="detectSvg">
+                                <span>SVG elements</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="detectBackground">
+                                <span>Background images</span>
+                            </label>
+                        </div>
+                        <p class="help-text">Advanced detection modes (disabled by default)</p>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="allowedExtensions">Allowed file extensions:</label>
+                        <input type="text" id="allowedExtensions">
+                        <p class="help-text">Comma-separated list of allowed file extensions</p>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="minImageSize">Minimum image size (px):</label>
+                        <input type="number" id="minImageSize" min="50" max="1000" value="100">
+                        <p class="help-text">Minimum width/height for images to be detected (50-1000px)</p>
+                    </div>
+                    
+                    <div class="exclusion-controls">
+                        <button type="button" class="exclusion-btn" id="exclusionBtn">🚫 Manage Domain Exclusions</button>
+                        <p class="help-text">Configure domains where the extension should not work</p>
+                    </div>
+                    
+                    <div class="reset-controls">
+                        <button type="button" class="reset-btn" id="resetBtn">🔄 Reset All Settings</button>
+                        <p class="help-text">Reset all settings to default values. This action cannot be undone.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Bulk Download:</h3>
+                <div class="bulk-download-buttons">
+                    <button id="downloadAllBtn" class="download-all-btn">
+                        📦 Gallery View
+                    </button>
+                    <button id="downloadZipBtn" class="download-zip-btn">
+                        🗜️ Download ZIP
+                    </button>
+                </div>
+                <p class="help-text">Gallery opens images in a new tab. ZIP downloads all images as a compressed file.</p>
+            </div>
+        </main>
+
+        <footer>
+            <div class="status" id="status"></div>
+            <div class="version" id="version"></div>
+        </footer>
+    </div>
+
+    <script src="jszip.min.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>

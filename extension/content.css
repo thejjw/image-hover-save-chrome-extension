@@ -1,0 +1,30 @@
+/* Image Hover Save Extension - Content Styles */
+
+.ihs-download-btn {
+    display: none;
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 28px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+    user-select: none;
+    z-index: 2147483647;
+}
+
+.ihs-download-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.ihs-download-btn:active {
+    transform: scale(0.95);
+}
