@@ -42,12 +42,20 @@ A Chrome extension that allows you to quickly save images by hovering over them 
 
 This extension:
 - Does not collect any personal data
-- Does not send any information to external servers
+- Does not send any usage information to external servers
 - Settings are saved using Chrome's sync storage feature that syncs to your own Google account when available.
 
 ## License
 
 See [LICENSE](LICENSE).
+
+  ### Third-Party Libraries
+
+  This extension uses the following open-source libraries:
+  
+  - **[JSZip](https://stuk.github.io/jszip/)** v3.10.1 - For creating ZIP archives of bulk downloads
+    - License: MIT
+    - Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
 
 ## Author
 
@@ -57,10 +65,3 @@ If you find this extension helpful, consider supporting its development:
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/default-yellow.png)](https://buymeacoffee.com/thejjw)
 
-## Third-Party Libraries
-
-This extension uses the following open-source libraries:
-
-- **[JSZip](https://stuk.github.io/jszip/)** v3.10.1 - For creating ZIP archives of bulk downloads
-  - License: MIT
-  - Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
