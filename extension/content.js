@@ -518,10 +518,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     sendResponse({ success: false, error: error.message });
                 }
             })();
+            return true; // Keep message channel open for async response
         } else {
             sendResponse({ success: false, error: 'JXL converter not available' });
+            return true;
         }
-        return true; // Keep message channel open for async response
     }
     
     debug.log('Unknown message type:', message.type);

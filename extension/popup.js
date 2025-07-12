@@ -130,39 +130,35 @@ async function initializePopup() {
 
 // Set up download mode UI and indicator
 function setupDownloadModeUI(currentMode) {
-    debug.log('[IHS Popup] Setting up download mode UI with mode:', currentMode);
+    console.log('[IHS Popup] Setting up download mode UI with mode:', currentMode);
     const expandButton = document.getElementById('expandDownloadModes');
     const downloadModeSection = document.getElementById('downloadModeSection');
     const downloadModeIndicator = document.getElementById('downloadModeIndicator');
     
-    debug.log('[IHS Popup] Found elements:', { expandButton: !!expandButton, downloadModeSection: !!downloadModeSection, downloadModeIndicator: !!downloadModeIndicator });
+    console.log('[IHS Popup] Found elements:', { expandButton: !!expandButton, downloadModeSection: !!downloadModeSection, downloadModeIndicator: !!downloadModeIndicator });
     
     // Update indicator text and style
     updateDownloadModeIndicator(currentMode);
     
     // Set up expand/collapse button
-    if (expandButton && downloadModeSection) {
-        expandButton.addEventListener('click', () => {
-            const isCollapsed = downloadModeSection.classList.contains('collapsed');
-            
-            if (isCollapsed) {
-                downloadModeSection.classList.remove('collapsed');
-                expandButton.classList.add('expanded');
-                expandButton.textContent = '⚙️ Hide Advanced';
-            } else {
-                downloadModeSection.classList.add('collapsed');
-                expandButton.classList.remove('expanded');
-                expandButton.textContent = '⚙️ Advanced';
-            }
-        });
+    expandButton.addEventListener('click', () => {
+        const isCollapsed = downloadModeSection.classList.contains('collapsed');
         
-        // Auto-expand if experimental mode is selected
-        if (currentMode !== 'normal') {
+        if (isCollapsed) {
+            downloadModeSection.classList.remove('collapsed');
+            expandButton.classList.add('expanded');
+            expandButton.textContent = '⚙️ Hide Advanced';
+        } else {
+            downloadModeSection.classList.add('collapsed');
+            expandButton.classList.remove('expanded');
+            expandButton.textContent = '⚙️ Advanced';
+        }
+    });        // Auto-expand if experimental mode is selected
+        if (currentMode === 'cache' || currentMode === 'canvas' || currentMode === 'jxl') {
             downloadModeSection.classList.remove('collapsed');
             expandButton.classList.add('expanded');
             expandButton.textContent = '⚙️ Hide Advanced';
         }
-    }
 }
 
 // Update download mode indicator
@@ -1161,7 +1157,7 @@ function sanitizeFilename(filename) {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
-    debug.log('[IHS Popup] DOM loaded - starting initialization...');
+    console.log('[IHS Popup] DOM loaded - starting initialization...');
     debug.log('[IHS Popup] Initializing...');
     
     try {
@@ -1187,11 +1183,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         // Initialize popup and event listeners
-        debug.log('[IHS Popup] About to initialize popup...');
+        console.log('[IHS Popup] About to initialize popup...');
         await initializePopup();
-        debug.log('[IHS Popup] Popup initialized, setting up event listeners...');
+        console.log('[IHS Popup] Popup initialized, setting up event listeners...');
         setupEventListeners();
-        debug.log('[IHS Popup] Event listeners set up');
+        console.log('[IHS Popup] Event listeners set up');
         
         debug.log('[IHS Popup] Initialization complete');
     } catch (error) {
