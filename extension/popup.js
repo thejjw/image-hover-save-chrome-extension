@@ -166,8 +166,8 @@ function updateDownloadModeIndicator(mode) {
     const modeName = mode === 'normal' ? 'Normal' : 
                    mode === 'cache' ? 'Cache-based (Experimental)' : 
                    mode === 'canvas' ? 'Canvas extraction (Experimental)' :
-                   mode === 'jxl' ? 'JXL Conversion (Experimental)' :
-                   'Canvas extraction (Experimental)';
+                   mode === 'jxl' ? 'JXL conversion (Experimental)' :
+                   'Unknown';
     
     indicator.innerHTML = `Download mode: <strong>${modeName}</strong>`;
     
@@ -299,7 +299,7 @@ function setupImageDetectionListeners() {
                     const modeName = e.target.value === 'normal' ? 'Normal' : 
                                    e.target.value === 'cache' ? 'Cache-based' : 
                                    e.target.value === 'canvas' ? 'Canvas extraction' :
-                                   e.target.value === 'jxl' ? 'JXL Conversion' : 'Canvas extraction';
+                                   e.target.value === 'jxl' ? 'JXL conversion' : 'Unknown';
                     showStatus(`Download mode set to: ${modeName}`);
                     
                     // Update the indicator
@@ -1178,6 +1178,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showStatus('JSZip library not functioning correctly', 'error');
                 return;
             }
+        }
+        
+        // Check if JXL converter is available
+        if (typeof jxlConverter !== 'undefined') {
+            debug.log('[IHS Popup] JXL converter loaded successfully');
+            // JXL converter auto-initializes when script loads
+        } else {
+            debug.warn('[IHS Popup] JXL converter not loaded, JXL conversion will not be available');
         }
         
         // Initialize popup and event listeners

@@ -87,10 +87,10 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'download_image') {
         downloadImage(message.url, message.filename, message.downloadMode);
-    } else if (message.type === 'download_image_jxl') {
-        downloadImageAsJXL(message.url, message.filename, message.downloadMode);
     } else if (message.type === 'download_canvas_image') {
         downloadCanvasImage(message.dataUrl, message.filename);
+    } else if (message.type === 'download_image_as_jxl') {
+        downloadImageAsJXL(message.url, message.filename, message.options);
     } else if (message.type === 'extract_canvas_image') {
         // For canvas extraction, we'll need to send a message back to content script
         sendResponse({ success: true });
@@ -212,4 +212,52 @@ async function getImageFromCache(url) {
     }
     
     return null;
+}
+
+// Download image converted to JXL format
+async function downloadImageAsJXL(url, originalFilename, options = {}) {
+    try {
+        debug.log('Downloading image for JXL conversion:', url);
+        
+        // Fetch the image
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        
+        // Check if it's a convertible format (JPEG for now)
+        if (!blob.type.includes('jpeg') && !blob.type.includes('jpg')) {
+            debug.warn('Image is not JPEG, falling back to normal download');
+            // Fallback to normal download
+            return downloadImage(url, originalFilename, 'normal');
+        }
+        
+        // For now, show that JXL conversion was attempted but not implemented
+        debug.log('JXL conversion requested but not yet implemented');
+        
+        // Generate JXL filename
+        const jxlFilename = originalFilename.replace(/\.[^/.]+$/, '') + '.jxl';
+        
+        // For now, fallback to normal download with original format
+        // TODO: Implement actual JXL conversion when @jsquash/jxl is integrated
+        debug.warn('JXL conversion not implemented yet, downloading original format');
+        return downloadImage(url, originalFilename, 'normal');
+        
+        // Future implementation:
+        // const jxlBlob = await convertImageToJXL(blob, options);
+        // const jxlUrl = URL.createObjectURL(jxlBlob);
+        // const downloadId = await chrome.downloads.download({
+        //     url: jxlUrl,
+        //     filename: jxlFilename,
+        //     saveAs: false
+        // });
+        // setTimeout(() => URL.revokeObjectURL(jxlUrl), 5000);
+        
+    } catch (error) {
+        debug.error('JXL download failed:', error);
+        // Fallback to normal download
+        return downloadImage(url, originalFilename, 'normal');
+    }
 }

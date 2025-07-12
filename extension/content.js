@@ -181,18 +181,20 @@ function downloadElement(element) {
         chrome.storage.sync.get(['ihs_download_mode'], async (result) => {
             const downloadMode = result.ihs_download_mode || 'normal';
             
-            // Handle JXL conversion mode (for JPEG images)
-            if (downloadMode === 'jxl' && elementUrl && (elementUrl.toLowerCase().includes('.jpg') || elementUrl.toLowerCase().includes('.jpeg'))) {
-                try {
+            // Handle JXL conversion mode
+            if (downloadMode === 'jxl') {
+                // Check if this is a JPEG image that can be converted
+                if (element.tagName === 'IMG' && (elementUrl.toLowerCase().includes('.jpg') || elementUrl.toLowerCase().includes('.jpeg'))) {
                     chrome.runtime.sendMessage({
-                        type: 'download_image_jxl',
+                        type: 'download_image_as_jxl',
                         url: elementUrl,
                         filename: filename,
-                        downloadMode: downloadMode
+                        options: { lossless: true }
                     });
                     return;
-                } catch (jxlError) {
-                    debug.warn('JXL conversion setup failed, falling back to normal download:', jxlError);
+                } else {
+                    // Not a JPEG, fall back to normal download
+                    debug.log('JXL conversion only supports JPEG images, falling back to normal download');
                 }
             }
             
