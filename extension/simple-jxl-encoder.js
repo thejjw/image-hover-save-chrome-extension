@@ -1,5 +1,5 @@
 // Simplified JXL Encoder for Chrome Extension Content Scripts
-// Based on @jsquash/jxl but adapted for content script environment
+// WASM-based JXL encoding compatible with Chrome extension environment
 
 (function() {
     'use strict';
@@ -13,43 +13,84 @@
 
         async init() {
             try {
-                window.debug.log('[JXL Encoder] Initializing simple JXL encoder...');
+                window.debug.log('[JXL Encoder] Initializing WASM JXL encoder...');
                 
-                // Load the single-threaded WASM encoder
+                // Load the WASM module directly without the problematic JS wrapper
                 const wasmUrl = chrome.runtime.getURL('enc/jxl_enc.wasm');
-                const jsUrl = chrome.runtime.getURL('enc/jxl_enc.js');
+                const wasmBytes = await fetch(wasmUrl).then(r => r.arrayBuffer());
+                
+                // Create a minimal WASM module wrapper
+                const wasmModule = await WebAssembly.instantiate(wasmBytes, {
+                    env: {
+                        memory: new WebAssembly.Memory({ initial: 256 }),
+                        // Add other required imports as needed
+                    }
+                });
+                
+                this.module = wasmModule.instance.exports;
+                this.initialized = true;
+                
+                window.debug.log('[JXL Encoder] WASM JXL encoder initialized successfully');
+                return true;
 
-                // Load the JS module first
+            } catch (error) {
+                window.debug.error('[JXL Encoder] Failed to initialize WASM JXL encoder:', error);
+                
+                // Try alternative approach using the JS file but patching import.meta
+                try {
+                    window.debug.log('[JXL Encoder] Trying alternative JS module loading...');
+                    await this.loadJSModule();
+                    return true;
+                } catch (jsError) {
+                    window.debug.error('[JXL Encoder] JS module loading also failed:', jsError);
+                    return false;
+                }
+            }
+        }
+
+        async loadJSModule() {
+            // Patch import.meta before loading the module
+            const originalImportMeta = window.import && window.import.meta;
+            
+            // Create a fake import.meta object
+            if (!window.import) {
+                window.import = {};
+            }
+            window.import.meta = {
+                url: chrome.runtime.getURL('enc/jxl_enc.js')
+            };
+            
+            try {
+                // Load the JS module
+                const jsUrl = chrome.runtime.getURL('enc/jxl_enc.js');
                 await this.loadScript(jsUrl);
                 
                 // Wait for the module to be available
                 let attempts = 0;
-                while (!window.createJxlEncoderModule && attempts < 50) {
+                while (!window.Module && attempts < 50) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     attempts++;
                 }
 
-                if (!window.createJxlEncoderModule) {
-                    throw new Error('JXL encoder module not loaded');
+                if (!window.Module) {
+                    throw new Error('JXL module not loaded');
                 }
 
-                // Initialize the module
-                this.module = await window.createJxlEncoderModule({
-                    locateFile: (path) => {
-                        if (path.endsWith('.wasm')) {
-                            return wasmUrl;
-                        }
-                        return path;
-                    }
-                });
-
+                // Wait for module ready
+                await window.Module.ready;
+                
+                this.module = window.Module;
                 this.initialized = true;
-                window.debug.log('[JXL Encoder] Simple JXL encoder initialized successfully');
-                return true;
-
-            } catch (error) {
-                window.debug.error('[JXL Encoder] Failed to initialize simple JXL encoder:', error);
-                return false;
+                
+                window.debug.log('[JXL Encoder] JS module loaded successfully');
+                
+            } finally {
+                // Restore original import.meta
+                if (originalImportMeta) {
+                    window.import.meta = originalImportMeta;
+                } else if (window.import) {
+                    delete window.import.meta;
+                }
             }
         }
 
@@ -95,19 +136,46 @@
             window.debug.log('[JXL Encoder] Encoding image with options:', _options);
 
             try {
-                const resultView = this.module.encode(
-                    imageData.data, 
-                    imageData.width, 
-                    imageData.height, 
-                    _options
-                );
+                // Use the loaded module to encode
+                let result;
+                
+                if (this.module.encode) {
+                    // Direct WASM function call
+                    result = this.module.encode(
+                        imageData.data, 
+                        imageData.width, 
+                        imageData.height, 
+                        _options
+                    );
+                } else if (window.Module && window.Module.encode) {
+                    // JS module wrapper
+                    result = window.Module.encode(
+                        imageData.data, 
+                        imageData.width, 
+                        imageData.height, 
+                        _options
+                    );
+                } else {
+                    throw new Error('No encode function available');
+                }
 
-                if (!resultView) {
+                if (!result) {
                     throw new Error('JXL encoding returned null result');
                 }
 
-                const buffer = resultView.buffer.slice(resultView.byteOffset, resultView.byteOffset + resultView.byteLength);
-                window.debug.log('[JXL Encoder] Encoding successful, output size:', buffer.byteLength);
+                // Handle different result types
+                let buffer;
+                if (result.buffer) {
+                    buffer = result.buffer.slice(result.byteOffset, result.byteOffset + result.byteLength);
+                } else if (result instanceof ArrayBuffer) {
+                    buffer = result;
+                } else if (result instanceof Uint8Array) {
+                    buffer = result.buffer;
+                } else {
+                    buffer = result;
+                }
+
+                window.debug.log('[JXL Encoder] Encoding successful, output size:', buffer.byteLength || buffer.length);
                 
                 return buffer;
 
@@ -118,9 +186,8 @@
         }
 
         canEncode(mimeType) {
-            // For now, we'll only support converting from ImageData
-            // The caller should handle decoding JPEG to ImageData first
-            return true;
+            // Only return true if we're actually initialized
+            return this.initialized;
         }
     }
 

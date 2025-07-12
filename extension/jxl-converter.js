@@ -105,6 +105,11 @@ class JXLConverter {
                 throw new Error('JXL encoder not available');
             }
 
+            // Check if encoder can actually encode
+            if (!this.encoder.canEncode || !this.encoder.canEncode()) {
+                throw new Error('JXL encoder not ready');
+            }
+
             // Set up encoding options with lossless default for JPEG conversion
             const jxlOptions = {
                 lossless: lossless,
@@ -130,7 +135,7 @@ class JXLConverter {
             // Use the encoder
             const jxlData = await this.encoder.encode(imageDataToEncode, jxlOptions);
             
-            window.debug.log('[JXL Converter] JXL conversion successful, size:', jxlData.byteLength);
+            window.debug.log('[JXL Converter] JXL conversion successful, size:', jxlData.byteLength || jxlData.length);
             return new Uint8Array(jxlData);
             
         } catch (error) {

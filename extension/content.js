@@ -503,7 +503,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     if (message.type === 'convert_to_jxl') {
         // Handle JXL conversion request via shared JXLConverter module
-        if (typeof globalThis.jxlConverter !== 'undefined') {
+        if (typeof window.jxlConverter !== 'undefined' && window.jxlConverter) {
             (async () => {
                 try {
                     const response = await fetch(message.url);
@@ -511,7 +511,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         throw new Error(`Failed to fetch image: ${response.status}`);
                     }
                     const blob = await response.blob();
-                    const jxlBlob = await globalThis.jxlConverter.convertBlobToJXL(blob, message.options);
+                    const jxlBlob = await window.jxlConverter.convertBlobToJXL(blob, message.options);
                     const arrayBuffer = await jxlBlob.arrayBuffer();
                     sendResponse({ 
                         success: true, 
