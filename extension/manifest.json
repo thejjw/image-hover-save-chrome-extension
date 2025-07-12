@@ -39,13 +39,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "enc/*.js",
-        "enc/*.wasm",
-        "enc/*.worker.js",
-        "encode.js",
-        "meta.js", 
-        "utils.js",
-        "wasm-feature-detect/*.js"
+        "*.jxl-bundle.js",
+        "jxl-bundle.js"
       ],
       "matches": ["<all_urls>"]
     }
