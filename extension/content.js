@@ -2,16 +2,22 @@
 // Copyright (c) Jaewoo Jeon (@thejjw) and Image Hover Save Extension Contributors
 // SPDX-License-Identifier: zlib-acknowledgement
 
-// Debug flag - set to false to disable all console output
-const DEBUG = true;
+// Share debug system with other scripts - only declare if not already exists
+if (typeof window.DEBUG === 'undefined') {
+    window.DEBUG = true;
+}
 
-// Debug console wrapper
-const debug = {
-    log: (...args) => DEBUG && console.log(...args),
-    error: (...args) => DEBUG && console.error(...args),
-    warn: (...args) => DEBUG && console.warn(...args),
-    info: (...args) => DEBUG && console.info(...args)
-};
+if (typeof window.debug === 'undefined') {
+    window.debug = {
+        log: (...args) => window.DEBUG && console.log(...args),
+        error: (...args) => window.DEBUG && console.error(...args),
+        warn: (...args) => window.DEBUG && console.warn(...args),
+        info: (...args) => window.DEBUG && console.info(...args)
+    };
+}
+
+// Use the shared debug object
+const debug = window.debug;
 
 // Configuration
 const CONFIG = {
