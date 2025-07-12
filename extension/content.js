@@ -181,6 +181,21 @@ function downloadElement(element) {
         chrome.storage.sync.get(['ihs_download_mode'], async (result) => {
             const downloadMode = result.ihs_download_mode || 'normal';
             
+            // Handle JXL conversion mode (for JPEG images)
+            if (downloadMode === 'jxl' && elementUrl && (elementUrl.toLowerCase().includes('.jpg') || elementUrl.toLowerCase().includes('.jpeg'))) {
+                try {
+                    chrome.runtime.sendMessage({
+                        type: 'download_image_jxl',
+                        url: elementUrl,
+                        filename: filename,
+                        downloadMode: downloadMode
+                    });
+                    return;
+                } catch (jxlError) {
+                    debug.warn('JXL conversion setup failed, falling back to normal download:', jxlError);
+                }
+            }
+            
             // Handle canvas extraction mode
             if (downloadMode === 'canvas') {
                 try {

@@ -87,6 +87,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'download_image') {
         downloadImage(message.url, message.filename, message.downloadMode);
+    } else if (message.type === 'download_image_jxl') {
+        downloadImageAsJXL(message.url, message.filename, message.downloadMode);
     } else if (message.type === 'download_canvas_image') {
         downloadCanvasImage(message.dataUrl, message.filename);
     } else if (message.type === 'extract_canvas_image') {

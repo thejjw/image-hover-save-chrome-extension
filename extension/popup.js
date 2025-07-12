@@ -165,6 +165,8 @@ function updateDownloadModeIndicator(mode) {
     const indicator = document.getElementById('downloadModeIndicator');
     const modeName = mode === 'normal' ? 'Normal' : 
                    mode === 'cache' ? 'Cache-based (Experimental)' : 
+                   mode === 'canvas' ? 'Canvas extraction (Experimental)' :
+                   mode === 'jxl' ? 'JXL Conversion (Experimental)' :
                    'Canvas extraction (Experimental)';
     
     indicator.innerHTML = `Download mode: <strong>${modeName}</strong>`;
@@ -295,7 +297,9 @@ function setupImageDetectionListeners() {
                 const success = await storage.set('ihs_download_mode', e.target.value);
                 if (success) {
                     const modeName = e.target.value === 'normal' ? 'Normal' : 
-                                   e.target.value === 'cache' ? 'Cache-based' : 'Canvas extraction';
+                                   e.target.value === 'cache' ? 'Cache-based' : 
+                                   e.target.value === 'canvas' ? 'Canvas extraction' :
+                                   e.target.value === 'jxl' ? 'JXL Conversion' : 'Canvas extraction';
                     showStatus(`Download mode set to: ${modeName}`);
                     
                     // Update the indicator
