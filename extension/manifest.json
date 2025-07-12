@@ -21,7 +21,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["jxl-converter.js", "content.js"],
+      "js": ["simple-jxl-encoder.js", "jxl-converter.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_end"
     }
@@ -38,7 +38,15 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["jxl.bundle.js"],
+      "resources": [
+        "enc/*.js",
+        "enc/*.wasm",
+        "enc/*.worker.js",
+        "encode.js",
+        "meta.js", 
+        "utils.js",
+        "wasm-feature-detect/*.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]
