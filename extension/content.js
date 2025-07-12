@@ -16,9 +16,6 @@ if (typeof window.debug === 'undefined') {
     };
 }
 
-// Use the shared debug object
-const debug = window.debug;
-
 // Configuration
 const CONFIG = {
     DEFAULT_EXTENSIONS: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'mp4', 'webm', 'mov'],
@@ -45,7 +42,7 @@ const storage = {
             const result = await chrome.storage.sync.get(key);
             return result[key];
         } catch (error) {
-            debug.warn('Storage error:', error);
+            window.debug.warn('Storage error:', error);
             return null;
         }
     }
@@ -81,12 +78,12 @@ async function initializeExtension() {
             // Ignore errors if background script isn't available
         });
         
-        debug.log('Extension initialized:', { 
+        window.debug.log('Extension initialized:', { 
             isEnabled, hoverDelay, minImageSize, isDomainExcluded,
             detectImg, detectVideo, detectSvg, detectBackground 
         });
     } catch (error) {
-        debug.warn('Failed to load settings:', error);
+        window.debug.warn('Failed to load settings:', error);
     }
 }
 
@@ -169,7 +166,7 @@ function downloadElement(element) {
             if (elementUrl && elementUrl.startsWith('data:')) {
                 // Keep data URL as is
             } else {
-                debug.warn('Cannot download element: no valid URL');
+                window.debug.warn('Cannot download element: no valid URL');
                 return;
             }
         }
@@ -200,7 +197,7 @@ function downloadElement(element) {
                     return;
                 } else {
                     // Not a JPEG, fall back to normal download
-                    debug.log('JXL conversion only supports JPEG images, falling back to normal download');
+                    window.debug.log('JXL conversion only supports JPEG images, falling back to normal download');
                 }
             }
             
@@ -222,10 +219,10 @@ function downloadElement(element) {
                         reader.readAsDataURL(canvasBlob);
                         return;
                     } else {
-                        debug.warn('Canvas extraction failed, falling back to normal download');
+                        window.debug.warn('Canvas extraction failed, falling back to normal download');
                     }
                 } catch (canvasError) {
-                    debug.warn('Canvas extraction error, falling back to normal download:', canvasError);
+                    window.debug.warn('Canvas extraction error, falling back to normal download:', canvasError);
                 }
             }
             
@@ -238,7 +235,7 @@ function downloadElement(element) {
         });
         
     } catch (error) {
-        debug.error('Error downloading element:', error);
+        window.debug.error('Error downloading element:', error);
     }
 }
 
@@ -329,7 +326,7 @@ function getAllImages(settings = {}) {
                         height: rect.height
                     });
                 } catch (error) {
-                    debug.warn('Failed to serialize SVG:', error);
+                    window.debug.warn('Failed to serialize SVG:', error);
                 }
             }
         });
@@ -436,7 +433,7 @@ async function checkDomainExclusion() {
         const exclusions = await storage.get('ihs_domain_exclusions');
         const wasExcluded = isDomainExcluded;
         isDomainExcluded = isCurrentDomainExcluded(exclusions);
-        debug.log('Domain exclusion check:', window.location.hostname, isDomainExcluded);
+        window.debug.log('Domain exclusion check:', window.location.hostname, isDomainExcluded);
         
         // Notify background script if exclusion status changed
         if (wasExcluded !== isDomainExcluded) {
@@ -448,24 +445,24 @@ async function checkDomainExclusion() {
             });
         }
     } catch (error) {
-        debug.warn('Failed to check domain exclusions:', error);
+        window.debug.warn('Failed to check domain exclusions:', error);
         isDomainExcluded = false;
     }
 }
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    debug.log('Content script received message:', message);
+    window.debug.log('Content script received message:', message);
     
     if (message.type === 'scan_images') {
         try {
-            debug.log('Starting image scan with settings:', message.settings);
+            window.debug.log('Starting image scan with settings:', message.settings);
             const images = getAllImages(message.settings);
-            debug.log('Image scan completed. Found:', images.length, 'images');
-            debug.log('Scanned images:', images);
+            window.debug.log('Image scan completed. Found:', images.length, 'images');
+            window.debug.log('Scanned images:', images);
             sendResponse({ success: true, images });
         } catch (error) {
-            debug.error('Error scanning images:', error);
+            window.debug.error('Error scanning images:', error);
             sendResponse({ success: false, error: error.message });
         }
         return true; // Keep message channel open for async response
@@ -473,7 +470,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     if (message.type === 'settings_updated') {
         try {
-            debug.log('Updating settings:', message.settings);
+            window.debug.log('Updating settings:', message.settings);
             
             // Update detection settings
             if (message.settings.detectImg !== undefined) {
@@ -492,13 +489,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 minImageSize = message.settings.minImageSize;
             }
             
-            debug.log('Settings updated:', { 
+            window.debug.log('Settings updated:', { 
                 detectImg, detectVideo, detectSvg, detectBackground, minImageSize 
             });
             
             sendResponse({ success: true });
         } catch (error) {
-            debug.error('Error updating settings:', error);
+            window.debug.error('Error updating settings:', error);
             sendResponse({ success: false, error: error.message });
         }
         return true;
@@ -531,7 +528,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     }
     
-    debug.log('Unknown message type:', message.type);
+    window.debug.log('Unknown message type:', message.type);
 });
 
 // Handle mouse events
@@ -603,7 +600,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'sync') {
         if (changes.ihs_enabled) {
             isEnabled = changes.ihs_enabled.newValue !== false;
-            debug.log('Extension enabled status changed:', isEnabled);
+            window.debug.log('Extension enabled status changed:', isEnabled);
             if (!isEnabled) {
                 hideDownloadButton();
             }

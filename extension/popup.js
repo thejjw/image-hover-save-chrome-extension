@@ -137,6 +137,12 @@ function setupDownloadModeUI(currentMode) {
     
     debug.log('[IHS Popup] Found elements:', { expandButton: !!expandButton, downloadModeSection: !!downloadModeSection, downloadModeIndicator: !!downloadModeIndicator });
     
+    // Early return if required elements are missing
+    if (!expandButton || !downloadModeSection || !downloadModeIndicator) {
+        debug.error('[IHS Popup] Missing required DOM elements for download mode UI');
+        return;
+    }
+    
     // Update indicator text and style
     updateDownloadModeIndicator(currentMode);
     
@@ -153,11 +159,13 @@ function setupDownloadModeUI(currentMode) {
             expandButton.classList.remove('expanded');
             expandButton.textContent = '⚙️ Advanced';
         }
-    });        // Auto-expand if experimental mode is selected
-        if (currentMode === 'cache' || currentMode === 'canvas' || currentMode === 'jxl') {
-            downloadModeSection.classList.remove('collapsed');
-            expandButton.classList.add('expanded');
-            expandButton.textContent = '⚙️ Hide Advanced';
+    });
+    
+    // Auto-expand if experimental mode is selected
+    if (currentMode === 'cache' || currentMode === 'canvas' || currentMode === 'jxl') {
+        downloadModeSection.classList.remove('collapsed');
+        expandButton.classList.add('expanded');
+        expandButton.textContent = '⚙️ Hide Advanced';
         }
 }
 
