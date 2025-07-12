@@ -3,8 +3,10 @@
 // Copyright (c) Jaewoo Jeon (@thejjw) and Image Hover Save Extension Contributors
 // SPDX-License-Identifier: zlib-acknowledgement
 
+// Debug flag - set to false to disable all console output
 const DEBUG = true;
 
+// Debug console wrapper
 const debug = {
     log: (...args) => DEBUG && console.log('[JXL Converter]', ...args),
     error: (...args) => DEBUG && console.error('[JXL Converter]', ...args),
