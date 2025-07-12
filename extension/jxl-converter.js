@@ -51,13 +51,26 @@ class JXLConverter {
         debug.log('Converting image to JXL, lossless:', lossless);
         
         try {
-            // For now, return a placeholder
-            // In the future, this would use the actual @jsquash/jxl encoder
-            throw new Error('JXL conversion not yet implemented - @jsquash/jxl integration pending');
+            // Check if window.jxl is available (loaded by jxl.bundle.js)
+            if (typeof window === 'undefined' || !window.jxl || !window.jxl.encode) {
+                throw new Error('JXL encoder not available. Make sure jxl.bundle.js is loaded.');
+            }
+
+            // Set up encoding options with lossless default for JPEG conversion
+            const jxlOptions = {
+                lossless: lossless,
+                quality: lossless ? 100 : 85,
+                effort: 7,
+                ...options
+            };
+
+            debug.log('Encoding with options:', jxlOptions);
             
-            // Placeholder for future implementation:
-            // const jxlData = await this.encoder.encode(imageData, { lossless });
-            // return jxlData;
+            // Use the bundled JXL encoder
+            const jxlData = await window.jxl.encode(imageData, jxlOptions);
+            
+            debug.log('JXL conversion successful, size:', jxlData.byteLength);
+            return new Uint8Array(jxlData);
             
         } catch (error) {
             debug.error('JXL conversion failed:', error);

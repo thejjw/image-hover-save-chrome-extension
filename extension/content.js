@@ -498,6 +498,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
     
+    if (message.type === 'convert_to_jxl') {
+        // Handle JXL conversion request
+        convertImageToJXL(message.url, message.filename, message.options)
+            .then(result => sendResponse(result))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+        return true; // Keep message channel open for async response
+    }
+    
     debug.log('Unknown message type:', message.type);
 });
 
@@ -698,6 +706,103 @@ async function extractImageToCanvas(element) {
         debug.error('Canvas extraction error:', error);
         return null;
     }
+}
+
+// JXL Conversion functionality
+async function convertImageToJXL(url, filename, options = {}) {
+    try {
+        debug.log('Converting image to JXL:', url);
+        
+        // Fetch the image
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        
+        // Check if it's a convertible format (JPEG for now)
+        if (!blob.type.includes('jpeg') && !blob.type.includes('jpg')) {
+            throw new Error('Image is not JPEG - only JPEG to JXL conversion is supported');
+        }
+        
+        debug.log('Converting JPEG to JXL...');
+        
+        // Convert blob to ImageData for JXL encoding
+        const imageData = await blobToImageData(blob);
+        
+        // Load JXL scripts if not already loaded
+        await loadJXLConverter();
+        
+        // Check if JXL converter is available
+        if (typeof window.jxl === 'undefined' || !window.jxl.encode) {
+            throw new Error('JXL encoder not available');
+        }
+        
+        // Convert to JXL with lossless encoding for JPEG
+        const jxlOptions = {
+            lossless: true,
+            quality: 100,
+            effort: 7,
+            ...options
+        };
+        
+        debug.log('Encoding with options:', jxlOptions);
+        const jxlData = await window.jxl.encode(imageData, jxlOptions);
+        
+        debug.log('JXL conversion successful, size:', jxlData.byteLength);
+        
+        return {
+            success: true,
+            jxlData: Array.from(new Uint8Array(jxlData))
+        };
+        
+    } catch (error) {
+        debug.error('JXL conversion failed:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Helper function to convert blob to ImageData
+async function blobToImageData(blob) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            resolve(imageData);
+        };
+        
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = URL.createObjectURL(blob);
+    });
+}
+
+// Load JXL converter scripts dynamically
+async function loadJXLConverter() {
+    if (typeof window.jxl !== 'undefined') {
+        return; // Already loaded
+    }
+    
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL('jxl.bundle.js');
+        script.onload = () => {
+            debug.log('JXL bundle loaded successfully');
+            resolve();
+        };
+        script.onerror = () => {
+            debug.error('Failed to load JXL bundle');
+            reject(new Error('Failed to load JXL bundle'));
+        };
+        document.head.appendChild(script);
+    });
 }
 
 // Initialize extension

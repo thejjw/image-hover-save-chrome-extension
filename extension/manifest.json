@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Image Hover Save",
-  "version": "1.1.0",
+  "name": "Image Hover Save (JXL Experimental)",
+  "version": "1.1.0-experimental",
   "description": "Hover over images to quickly save them to your downloads folder.",
   "permissions": [
     "downloads",
@@ -35,5 +35,11 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["jxl.bundle.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
