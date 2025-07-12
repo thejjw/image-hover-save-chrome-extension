@@ -130,33 +130,38 @@ async function initializePopup() {
 
 // Set up download mode UI and indicator
 function setupDownloadModeUI(currentMode) {
+    debug.log('[IHS Popup] Setting up download mode UI with mode:', currentMode);
     const expandButton = document.getElementById('expandDownloadModes');
     const downloadModeSection = document.getElementById('downloadModeSection');
     const downloadModeIndicator = document.getElementById('downloadModeIndicator');
+    
+    debug.log('[IHS Popup] Found elements:', { expandButton: !!expandButton, downloadModeSection: !!downloadModeSection, downloadModeIndicator: !!downloadModeIndicator });
     
     // Update indicator text and style
     updateDownloadModeIndicator(currentMode);
     
     // Set up expand/collapse button
-    expandButton.addEventListener('click', () => {
-        const isCollapsed = downloadModeSection.classList.contains('collapsed');
+    if (expandButton && downloadModeSection) {
+        expandButton.addEventListener('click', () => {
+            const isCollapsed = downloadModeSection.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                downloadModeSection.classList.remove('collapsed');
+                expandButton.classList.add('expanded');
+                expandButton.textContent = '⚙️ Hide Advanced';
+            } else {
+                downloadModeSection.classList.add('collapsed');
+                expandButton.classList.remove('expanded');
+                expandButton.textContent = '⚙️ Advanced';
+            }
+        });
         
-        if (isCollapsed) {
+        // Auto-expand if experimental mode is selected
+        if (currentMode !== 'normal') {
             downloadModeSection.classList.remove('collapsed');
             expandButton.classList.add('expanded');
             expandButton.textContent = '⚙️ Hide Advanced';
-        } else {
-            downloadModeSection.classList.add('collapsed');
-            expandButton.classList.remove('expanded');
-            expandButton.textContent = '⚙️ Advanced';
         }
-    });
-    
-    // Auto-expand if experimental mode is selected
-    if (currentMode !== 'normal') {
-        downloadModeSection.classList.remove('collapsed');
-        expandButton.classList.add('expanded');
-        expandButton.textContent = '⚙️ Hide Advanced';
     }
 }
 
@@ -1156,6 +1161,7 @@ function sanitizeFilename(filename) {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
+    debug.log('[IHS Popup] DOM loaded - starting initialization...');
     debug.log('[IHS Popup] Initializing...');
     
     try {
@@ -1180,17 +1186,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         
-        // Check if JXL converter is available
-        if (typeof jxlConverter !== 'undefined') {
-            debug.log('[IHS Popup] JXL converter loaded successfully');
-            // JXL converter auto-initializes when script loads
-        } else {
-            debug.warn('[IHS Popup] JXL converter not loaded, JXL conversion will not be available');
-        }
-        
         // Initialize popup and event listeners
+        debug.log('[IHS Popup] About to initialize popup...');
         await initializePopup();
+        debug.log('[IHS Popup] Popup initialized, setting up event listeners...');
         setupEventListeners();
+        debug.log('[IHS Popup] Event listeners set up');
         
         debug.log('[IHS Popup] Initialization complete');
     } catch (error) {
