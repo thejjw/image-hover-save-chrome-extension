@@ -28,16 +28,53 @@ class JXLConverter {
         try {
             window.debug.log('[JXL Converter] Initializing JXL converter...');
             
-            // For now, we'll create a placeholder that indicates JXL conversion is not yet available
-            // In the future, this would initialize the actual @jsquash/jxl encoder
+            // Load the JXL bundle if not already loaded
+            if (typeof window === 'undefined' || !window.jxl) {
+                await this.loadJXLBundle();
+            }
+            
             this.initialized = true;
-            window.debug.log('[JXL Converter] JXL converter initialized (placeholder mode)');
+            window.debug.log('[JXL Converter] JXL converter initialized successfully');
             
             return true;
         } catch (error) {
             window.debug.error('[JXL Converter] Failed to initialize JXL converter:', error);
             return false;
         }
+    }
+
+    // Load the JXL bundle dynamically
+    async loadJXLBundle() {
+        return new Promise((resolve, reject) => {
+            if (typeof window !== 'undefined' && window.jxl) {
+                resolve(); // Already loaded
+                return;
+            }
+
+            window.debug.log('[JXL Converter] Loading jxl.bundle.js...');
+            
+            const script = document.createElement('script');
+            script.src = chrome.runtime.getURL('jxl.bundle.js');
+            script.onload = () => {
+                window.debug.log('[JXL Converter] jxl.bundle.js loaded successfully');
+                // Wait a bit for the library to initialize
+                setTimeout(() => {
+                    if (window.jxl && window.jxl.encode) {
+                        window.debug.log('[JXL Converter] JXL encoder is available');
+                        resolve();
+                    } else {
+                        window.debug.error('[JXL Converter] JXL encoder not available after loading bundle');
+                        reject(new Error('JXL encoder not available after loading bundle'));
+                    }
+                }, 100);
+            };
+            script.onerror = (error) => {
+                window.debug.error('[JXL Converter] Failed to load jxl.bundle.js:', error);
+                reject(new Error('Failed to load jxl.bundle.js'));
+            };
+            
+            document.head.appendChild(script);
+        });
     }
 
     // Check if an image can be converted to JXL (currently only JPEG)
@@ -71,8 +108,20 @@ class JXLConverter {
 
             window.debug.log('[JXL Converter] Encoding with options:', jxlOptions);
             
+            // If input is raw bytes, we need to decode it to ImageData first
+            let imageDataToEncode;
+            if (imageData instanceof Uint8Array || imageData instanceof ArrayBuffer) {
+                // Create a temporary image to decode the JPEG data
+                imageDataToEncode = await this.decodeImageToImageData(imageData);
+            } else if (imageData.data && imageData.width && imageData.height) {
+                // Already ImageData
+                imageDataToEncode = imageData;
+            } else {
+                throw new Error('Unsupported image data format');
+            }
+            
             // Use the bundled JXL encoder
-            const jxlData = await window.jxl.encode(imageData, jxlOptions);
+            const jxlData = await window.jxl.encode(imageDataToEncode, jxlOptions);
             
             window.debug.log('[JXL Converter] JXL conversion successful, size:', jxlData.byteLength);
             return new Uint8Array(jxlData);
@@ -81,6 +130,41 @@ class JXLConverter {
             window.debug.error('[JXL Converter] JXL conversion failed:', error);
             throw error;
         }
+    }
+
+    // Helper method to decode image bytes to ImageData
+    async decodeImageToImageData(imageBytes) {
+        return new Promise((resolve, reject) => {
+            // Convert Uint8Array to Blob
+            const blob = new Blob([imageBytes], { type: 'image/jpeg' });
+            const url = URL.createObjectURL(blob);
+            
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    // Create canvas and get ImageData
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
+                    ctx.drawImage(img, 0, 0);
+                    const imageData = ctx.getImageData(0, 0, img.width, img.height);
+                    
+                    URL.revokeObjectURL(url);
+                    resolve(imageData);
+                } catch (error) {
+                    URL.revokeObjectURL(url);
+                    reject(error);
+                }
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error('Failed to load image for decoding'));
+            };
+            img.src = url;
+        });
     }
 
     // Convert a blob to JXL
