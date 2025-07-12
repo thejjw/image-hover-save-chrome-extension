@@ -130,12 +130,12 @@ async function initializePopup() {
 
 // Set up download mode UI and indicator
 function setupDownloadModeUI(currentMode) {
-    console.log('[IHS Popup] Setting up download mode UI with mode:', currentMode);
+    debug.log('[IHS Popup] Setting up download mode UI with mode:', currentMode);
     const expandButton = document.getElementById('expandDownloadModes');
     const downloadModeSection = document.getElementById('downloadModeSection');
     const downloadModeIndicator = document.getElementById('downloadModeIndicator');
     
-    console.log('[IHS Popup] Found elements:', { expandButton: !!expandButton, downloadModeSection: !!downloadModeSection, downloadModeIndicator: !!downloadModeIndicator });
+    debug.log('[IHS Popup] Found elements:', { expandButton: !!expandButton, downloadModeSection: !!downloadModeSection, downloadModeIndicator: !!downloadModeIndicator });
     
     // Update indicator text and style
     updateDownloadModeIndicator(currentMode);
@@ -1183,11 +1183,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         // Initialize popup and event listeners
-        console.log('[IHS Popup] About to initialize popup...');
+        debug.log('[IHS Popup] About to initialize popup...');
         await initializePopup();
-        console.log('[IHS Popup] Popup initialized, setting up event listeners...');
+        debug.log('[IHS Popup] Popup initialized, setting up event listeners...');
         setupEventListeners();
-        console.log('[IHS Popup] Event listeners set up');
+        debug.log('[IHS Popup] Event listeners set up');
         
         debug.log('[IHS Popup] Initialization complete');
     } catch (error) {

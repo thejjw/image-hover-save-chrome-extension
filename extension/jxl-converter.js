@@ -3,16 +3,20 @@
 // Copyright (c) Jaewoo Jeon (@thejjw) and Image Hover Save Extension Contributors
 // SPDX-License-Identifier: zlib-acknowledgement
 
-// Debug flag - set to false to disable all console output
-const DEBUG = true;
+// Debug flag - set to false to disable all console output (shared with other scripts)
+if (typeof DEBUG === 'undefined') {
+    var DEBUG = true;
+}
 
 // Debug console wrapper
-const debug = {
-    log: (...args) => DEBUG && console.log('[JXL Converter]', ...args),
-    error: (...args) => DEBUG && console.error('[JXL Converter]', ...args),
-    warn: (...args) => DEBUG && console.warn('[JXL Converter]', ...args),
-    info: (...args) => DEBUG && console.info('[JXL Converter]', ...args)
-};
+if (typeof debug === 'undefined') {
+    var debug = {
+        log: (...args) => DEBUG && console.log(...args),
+        error: (...args) => DEBUG && console.error(...args),
+        warn: (...args) => DEBUG && console.warn(...args),
+        info: (...args) => DEBUG && console.info(...args)
+    };
+}
 
 class JXLConverter {
     constructor() {
@@ -23,16 +27,16 @@ class JXLConverter {
     // Initialize the JXL encoder
     async init() {
         try {
-            debug.log('Initializing JXL converter...');
+            debug.log('[JXL Converter] Initializing JXL converter...');
             
             // For now, we'll create a placeholder that indicates JXL conversion is not yet available
             // In the future, this would initialize the actual @jsquash/jxl encoder
             this.initialized = true;
-            debug.log('JXL converter initialized (placeholder mode)');
+            debug.log('[JXL Converter] JXL converter initialized (placeholder mode)');
             
             return true;
         } catch (error) {
-            debug.error('Failed to initialize JXL converter:', error);
+            debug.error('[JXL Converter] Failed to initialize JXL converter:', error);
             return false;
         }
     }
@@ -50,7 +54,7 @@ class JXLConverter {
 
         const { lossless = true } = options;
         
-        debug.log('Converting image to JXL, lossless:', lossless);
+        debug.log('[JXL Converter] Converting image to JXL, lossless:', lossless);
         
         try {
             // Check if window.jxl is available (loaded by jxl.bundle.js)
@@ -66,16 +70,16 @@ class JXLConverter {
                 ...options
             };
 
-            debug.log('Encoding with options:', jxlOptions);
+            debug.log('[JXL Converter] Encoding with options:', jxlOptions);
             
             // Use the bundled JXL encoder
             const jxlData = await window.jxl.encode(imageData, jxlOptions);
             
-            debug.log('JXL conversion successful, size:', jxlData.byteLength);
+            debug.log('[JXL Converter] JXL conversion successful, size:', jxlData.byteLength);
             return new Uint8Array(jxlData);
             
         } catch (error) {
-            debug.error('JXL conversion failed:', error);
+            debug.error('[JXL Converter] JXL conversion failed:', error);
             throw error;
         }
     }
@@ -132,9 +136,9 @@ const jxlConverter = new JXLConverter();
 // Auto-initialize when script loads
 jxlConverter.init().then(success => {
     if (success) {
-        debug.log('JXL converter ready');
+        debug.log('[JXL Converter] JXL converter ready');
     } else {
-        debug.error('JXL converter failed to initialize');
+        debug.error('[JXL Converter] JXL converter failed to initialize');
     }
 });
 
