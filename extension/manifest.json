@@ -39,12 +39,12 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "jxl-bundle.js",
-        "233.jxl-bundle.js",
-        "249.jxl-bundle.js", 
-        "413.jxl-bundle.js",
-        "725.jxl-bundle.js",
-        "913.jxl-bundle.js"
+        "lib/jxl-bundle.js",
+        "lib/233.jxl-bundle.js",
+        "lib/249.jxl-bundle.js", 
+        "lib/413.jxl-bundle.js",
+        "lib/725.jxl-bundle.js",
+        "lib/913.jxl-bundle.js"
       ],
       "matches": ["<all_urls>"]
     }

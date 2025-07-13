@@ -842,7 +842,7 @@ async function loadJXLConverter() {
     
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = chrome.runtime.getURL('jxl.bundle.js');
+        script.src = chrome.runtime.getURL('lib/jxl-bundle.js');
         script.onload = () => {
             debug.log('JXL bundle loaded successfully');
             resolve();
