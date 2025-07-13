@@ -38,7 +38,14 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["jxl.bundle.js"],
+      "resources": [
+        "jxl-bundle.js",
+        "233.jxl-bundle.js",
+        "249.jxl-bundle.js", 
+        "413.jxl-bundle.js",
+        "725.jxl-bundle.js",
+        "913.jxl-bundle.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

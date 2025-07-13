@@ -1,0 +1,1 @@
+After running `npm run build`, you need to deploy **ALL** the files from the `dist/` folder
