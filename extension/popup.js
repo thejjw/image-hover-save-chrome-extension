@@ -130,18 +130,9 @@ async function initializePopup() {
 
 // Set up download mode UI and indicator
 function setupDownloadModeUI(currentMode) {
-    debug.log('[IHS Popup] Setting up download mode UI with mode:', currentMode);
     const expandButton = document.getElementById('expandDownloadModes');
     const downloadModeSection = document.getElementById('downloadModeSection');
     const downloadModeIndicator = document.getElementById('downloadModeIndicator');
-    
-    debug.log('[IHS Popup] Found elements:', { expandButton: !!expandButton, downloadModeSection: !!downloadModeSection, downloadModeIndicator: !!downloadModeIndicator });
-    
-    // Early return if required elements are missing
-    if (!expandButton || !downloadModeSection || !downloadModeIndicator) {
-        debug.error('[IHS Popup] Missing required DOM elements for download mode UI');
-        return;
-    }
     
     // Update indicator text and style
     updateDownloadModeIndicator(currentMode);
@@ -162,11 +153,11 @@ function setupDownloadModeUI(currentMode) {
     });
     
     // Auto-expand if experimental mode is selected
-    if (currentMode === 'cache' || currentMode === 'canvas' || currentMode === 'jxl') {
+    if (currentMode !== 'normal') {
         downloadModeSection.classList.remove('collapsed');
         expandButton.classList.add('expanded');
         expandButton.textContent = '⚙️ Hide Advanced';
-        }
+    }
 }
 
 // Update download mode indicator
@@ -1165,7 +1156,6 @@ function sanitizeFilename(filename) {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[IHS Popup] DOM loaded - starting initialization...');
     debug.log('[IHS Popup] Initializing...');
     
     try {
@@ -1190,12 +1180,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         
+        // Check if JXL converter is available
+        if (typeof jxlConverter !== 'undefined') {
+            debug.log('[IHS Popup] JXL converter loaded successfully');
+            // JXL converter auto-initializes when script loads
+        } else {
+            debug.warn('[IHS Popup] JXL converter not loaded, JXL conversion will not be available');
+        }
+        
         // Initialize popup and event listeners
-        debug.log('[IHS Popup] About to initialize popup...');
         await initializePopup();
-        debug.log('[IHS Popup] Popup initialized, setting up event listeners...');
         setupEventListeners();
-        debug.log('[IHS Popup] Event listeners set up');
         
         debug.log('[IHS Popup] Initialization complete');
     } catch (error) {

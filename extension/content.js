@@ -2,19 +2,16 @@
 // Copyright (c) Jaewoo Jeon (@thejjw) and Image Hover Save Extension Contributors
 // SPDX-License-Identifier: zlib-acknowledgement
 
-// Share debug system with other scripts - only declare if not already exists
-if (typeof window.DEBUG === 'undefined') {
-    window.DEBUG = true;
-}
+// Debug flag - set to false to disable all console output
+const DEBUG = true;
 
-if (typeof window.debug === 'undefined') {
-    window.debug = {
-        log: (...args) => window.DEBUG && console.log(...args),
-        error: (...args) => window.DEBUG && console.error(...args),
-        warn: (...args) => window.DEBUG && console.warn(...args),
-        info: (...args) => window.DEBUG && console.info(...args)
-    };
-}
+// Debug console wrapper
+const debug = {
+    log: (...args) => DEBUG && console.log(...args),
+    error: (...args) => DEBUG && console.error(...args),
+    warn: (...args) => DEBUG && console.warn(...args),
+    info: (...args) => DEBUG && console.info(...args)
+};
 
 // Configuration
 const CONFIG = {
@@ -42,7 +39,7 @@ const storage = {
             const result = await chrome.storage.sync.get(key);
             return result[key];
         } catch (error) {
-            window.debug.warn('Storage error:', error);
+            debug.warn('Storage error:', error);
             return null;
         }
     }
@@ -78,12 +75,12 @@ async function initializeExtension() {
             // Ignore errors if background script isn't available
         });
         
-        window.debug.log('Extension initialized:', { 
+        debug.log('Extension initialized:', { 
             isEnabled, hoverDelay, minImageSize, isDomainExcluded,
             detectImg, detectVideo, detectSvg, detectBackground 
         });
     } catch (error) {
-        window.debug.warn('Failed to load settings:', error);
+        debug.warn('Failed to load settings:', error);
     }
 }
 
@@ -166,7 +163,7 @@ function downloadElement(element) {
             if (elementUrl && elementUrl.startsWith('data:')) {
                 // Keep data URL as is
             } else {
-                window.debug.warn('Cannot download element: no valid URL');
+                debug.warn('Cannot download element: no valid URL');
                 return;
             }
         }
@@ -197,7 +194,7 @@ function downloadElement(element) {
                     return;
                 } else {
                     // Not a JPEG, fall back to normal download
-                    window.debug.log('JXL conversion only supports JPEG images, falling back to normal download');
+                    debug.log('JXL conversion only supports JPEG images, falling back to normal download');
                 }
             }
             
@@ -219,10 +216,10 @@ function downloadElement(element) {
                         reader.readAsDataURL(canvasBlob);
                         return;
                     } else {
-                        window.debug.warn('Canvas extraction failed, falling back to normal download');
+                        debug.warn('Canvas extraction failed, falling back to normal download');
                     }
                 } catch (canvasError) {
-                    window.debug.warn('Canvas extraction error, falling back to normal download:', canvasError);
+                    debug.warn('Canvas extraction error, falling back to normal download:', canvasError);
                 }
             }
             
@@ -235,7 +232,7 @@ function downloadElement(element) {
         });
         
     } catch (error) {
-        window.debug.error('Error downloading element:', error);
+        debug.error('Error downloading element:', error);
     }
 }
 
@@ -326,7 +323,7 @@ function getAllImages(settings = {}) {
                         height: rect.height
                     });
                 } catch (error) {
-                    window.debug.warn('Failed to serialize SVG:', error);
+                    debug.warn('Failed to serialize SVG:', error);
                 }
             }
         });
@@ -433,7 +430,7 @@ async function checkDomainExclusion() {
         const exclusions = await storage.get('ihs_domain_exclusions');
         const wasExcluded = isDomainExcluded;
         isDomainExcluded = isCurrentDomainExcluded(exclusions);
-        window.debug.log('Domain exclusion check:', window.location.hostname, isDomainExcluded);
+        debug.log('Domain exclusion check:', window.location.hostname, isDomainExcluded);
         
         // Notify background script if exclusion status changed
         if (wasExcluded !== isDomainExcluded) {
@@ -445,24 +442,24 @@ async function checkDomainExclusion() {
             });
         }
     } catch (error) {
-        window.debug.warn('Failed to check domain exclusions:', error);
+        debug.warn('Failed to check domain exclusions:', error);
         isDomainExcluded = false;
     }
 }
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    window.debug.log('Content script received message:', message);
+    debug.log('Content script received message:', message);
     
     if (message.type === 'scan_images') {
         try {
-            window.debug.log('Starting image scan with settings:', message.settings);
+            debug.log('Starting image scan with settings:', message.settings);
             const images = getAllImages(message.settings);
-            window.debug.log('Image scan completed. Found:', images.length, 'images');
-            window.debug.log('Scanned images:', images);
+            debug.log('Image scan completed. Found:', images.length, 'images');
+            debug.log('Scanned images:', images);
             sendResponse({ success: true, images });
         } catch (error) {
-            window.debug.error('Error scanning images:', error);
+            debug.error('Error scanning images:', error);
             sendResponse({ success: false, error: error.message });
         }
         return true; // Keep message channel open for async response
@@ -470,7 +467,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     if (message.type === 'settings_updated') {
         try {
-            window.debug.log('Updating settings:', message.settings);
+            debug.log('Updating settings:', message.settings);
             
             // Update detection settings
             if (message.settings.detectImg !== undefined) {
@@ -489,46 +486,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 minImageSize = message.settings.minImageSize;
             }
             
-            window.debug.log('Settings updated:', { 
+            debug.log('Settings updated:', { 
                 detectImg, detectVideo, detectSvg, detectBackground, minImageSize 
             });
             
             sendResponse({ success: true });
         } catch (error) {
-            window.debug.error('Error updating settings:', error);
+            debug.error('Error updating settings:', error);
             sendResponse({ success: false, error: error.message });
         }
         return true;
     }
     
     if (message.type === 'convert_to_jxl') {
-        // Handle JXL conversion request via shared JXLConverter module
-        if (typeof window.jxlConverter !== 'undefined' && window.jxlConverter) {
-            (async () => {
-                try {
-                    const response = await fetch(message.url);
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch image: ${response.status}`);
-                    }
-                    const blob = await response.blob();
-                    const jxlBlob = await window.jxlConverter.convertBlobToJXL(blob, message.options);
-                    const arrayBuffer = await jxlBlob.arrayBuffer();
-                    sendResponse({ 
-                        success: true, 
-                        jxlData: Array.from(new Uint8Array(arrayBuffer))
-                    });
-                } catch (error) {
-                    sendResponse({ success: false, error: error.message });
-                }
-            })();
-            return true; // Keep message channel open for async response
-        } else {
-            sendResponse({ success: false, error: 'JXL converter not available' });
-            return true;
-        }
+        // Handle JXL conversion request
+        convertImageToJXL(message.url, message.filename, message.options)
+            .then(result => sendResponse(result))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+        return true; // Keep message channel open for async response
     }
     
-    window.debug.log('Unknown message type:', message.type);
+    debug.log('Unknown message type:', message.type);
 });
 
 // Handle mouse events
@@ -600,7 +578,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'sync') {
         if (changes.ihs_enabled) {
             isEnabled = changes.ihs_enabled.newValue !== false;
-            window.debug.log('Extension enabled status changed:', isEnabled);
+            debug.log('Extension enabled status changed:', isEnabled);
             if (!isEnabled) {
                 hideDownloadButton();
             }
@@ -728,6 +706,103 @@ async function extractImageToCanvas(element) {
         debug.error('Canvas extraction error:', error);
         return null;
     }
+}
+
+// JXL Conversion functionality
+async function convertImageToJXL(url, filename, options = {}) {
+    try {
+        debug.log('Converting image to JXL:', url);
+        
+        // Fetch the image
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        
+        // Check if it's a convertible format (JPEG for now)
+        if (!blob.type.includes('jpeg') && !blob.type.includes('jpg')) {
+            throw new Error('Image is not JPEG - only JPEG to JXL conversion is supported');
+        }
+        
+        debug.log('Converting JPEG to JXL...');
+        
+        // Convert blob to ImageData for JXL encoding
+        const imageData = await blobToImageData(blob);
+        
+        // Load JXL scripts if not already loaded
+        await loadJXLConverter();
+        
+        // Check if JXL converter is available
+        if (typeof window.jxl === 'undefined' || !window.jxl.encode) {
+            throw new Error('JXL encoder not available');
+        }
+        
+        // Convert to JXL with lossless encoding for JPEG
+        const jxlOptions = {
+            lossless: true,
+            quality: 100,
+            effort: 7,
+            ...options
+        };
+        
+        debug.log('Encoding with options:', jxlOptions);
+        const jxlData = await window.jxl.encode(imageData, jxlOptions);
+        
+        debug.log('JXL conversion successful, size:', jxlData.byteLength);
+        
+        return {
+            success: true,
+            jxlData: Array.from(new Uint8Array(jxlData))
+        };
+        
+    } catch (error) {
+        debug.error('JXL conversion failed:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Helper function to convert blob to ImageData
+async function blobToImageData(blob) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            resolve(imageData);
+        };
+        
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = URL.createObjectURL(blob);
+    });
+}
+
+// Load JXL converter scripts dynamically
+async function loadJXLConverter() {
+    if (typeof window.jxl !== 'undefined') {
+        return; // Already loaded
+    }
+    
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL('jxl.bundle.js');
+        script.onload = () => {
+            debug.log('JXL bundle loaded successfully');
+            resolve();
+        };
+        script.onerror = () => {
+            debug.error('Failed to load JXL bundle');
+            reject(new Error('Failed to load JXL bundle'));
+        };
+        document.head.appendChild(script);
+    });
 }
 
 // Initialize extension

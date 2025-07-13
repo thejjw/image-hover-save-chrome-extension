@@ -3,19 +3,14 @@
 // Copyright (c) Jaewoo Jeon (@thejjw) and Image Hover Save Extension Contributors
 // SPDX-License-Identifier: zlib-acknowledgement
 
-// Share debug system with other scripts - only declare if not already exists
-if (typeof window.DEBUG === 'undefined') {
-    window.DEBUG = true;
-}
+const DEBUG = true;
 
-if (typeof window.debug === 'undefined') {
-    window.debug = {
-        log: (...args) => window.DEBUG && console.log(...args),
-        error: (...args) => window.DEBUG && console.error(...args),
-        warn: (...args) => window.DEBUG && console.warn(...args),
-        info: (...args) => window.DEBUG && console.info(...args)
-    };
-}
+const debug = {
+    log: (...args) => DEBUG && console.log('[JXL Converter]', ...args),
+    error: (...args) => DEBUG && console.error('[JXL Converter]', ...args),
+    warn: (...args) => DEBUG && console.warn('[JXL Converter]', ...args),
+    info: (...args) => DEBUG && console.info('[JXL Converter]', ...args)
+};
 
 class JXLConverter {
     constructor() {
@@ -26,63 +21,18 @@ class JXLConverter {
     // Initialize the JXL encoder
     async init() {
         try {
-            window.debug.log('[JXL Converter] Initializing JXL converter...');
+            debug.log('Initializing JXL converter...');
             
-            // Load the simple JXL encoder if not already loaded
-            if (typeof window.SimpleJXLEncoder === 'undefined') {
-                await this.loadSimpleJXLEncoder();
-            }
-            
-            // Create encoder instance
-            this.encoder = new window.SimpleJXLEncoder();
-            const success = await this.encoder.init();
-            
-            if (!success) {
-                throw new Error('Failed to initialize JXL encoder');
-            }
-            
+            // For now, we'll create a placeholder that indicates JXL conversion is not yet available
+            // In the future, this would initialize the actual @jsquash/jxl encoder
             this.initialized = true;
-            window.debug.log('[JXL Converter] JXL converter initialized successfully');
+            debug.log('JXL converter initialized (placeholder mode)');
             
             return true;
         } catch (error) {
-            window.debug.error('[JXL Converter] Failed to initialize JXL converter:', error);
+            debug.error('Failed to initialize JXL converter:', error);
             return false;
         }
-    }
-
-    // Load the simple JXL encoder script
-    async loadSimpleJXLEncoder() {
-        return new Promise((resolve, reject) => {
-            if (typeof window.SimpleJXLEncoder !== 'undefined') {
-                resolve(); // Already loaded
-                return;
-            }
-
-            window.debug.log('[JXL Converter] Loading simple-jxl-encoder.js...');
-            
-            const script = document.createElement('script');
-            script.src = chrome.runtime.getURL('simple-jxl-encoder.js');
-            script.onload = () => {
-                window.debug.log('[JXL Converter] simple-jxl-encoder.js loaded successfully');
-                // Wait a bit for the encoder to be available
-                setTimeout(() => {
-                    if (window.SimpleJXLEncoder) {
-                        window.debug.log('[JXL Converter] SimpleJXLEncoder is available');
-                        resolve();
-                    } else {
-                        window.debug.error('[JXL Converter] SimpleJXLEncoder not available after loading');
-                        reject(new Error('SimpleJXLEncoder not available after loading'));
-                    }
-                }, 100);
-            };
-            script.onerror = (error) => {
-                window.debug.error('[JXL Converter] Failed to load simple-jxl-encoder.js:', error);
-                reject(new Error('Failed to load simple-jxl-encoder.js'));
-            };
-            
-            document.head.appendChild(script);
-        });
     }
 
     // Check if an image can be converted to JXL (currently only JPEG)
@@ -98,16 +48,12 @@ class JXLConverter {
 
         const { lossless = true } = options;
         
-        window.debug.log('[JXL Converter] Converting image to JXL, lossless:', lossless);
+        debug.log('Converting image to JXL, lossless:', lossless);
         
         try {
-            if (!this.encoder) {
-                throw new Error('JXL encoder not available');
-            }
-
-            // Check if encoder can actually encode
-            if (!this.encoder.canEncode || !this.encoder.canEncode()) {
-                throw new Error('JXL encoder not ready');
+            // Check if window.jxl is available (loaded by jxl.bundle.js)
+            if (typeof window === 'undefined' || !window.jxl || !window.jxl.encode) {
+                throw new Error('JXL encoder not available. Make sure jxl.bundle.js is loaded.');
             }
 
             // Set up encoding options with lossless default for JPEG conversion
@@ -118,65 +64,18 @@ class JXLConverter {
                 ...options
             };
 
-            window.debug.log('[JXL Converter] Encoding with options:', jxlOptions);
+            debug.log('Encoding with options:', jxlOptions);
             
-            // If input is raw bytes, we need to decode it to ImageData first
-            let imageDataToEncode;
-            if (imageData instanceof Uint8Array || imageData instanceof ArrayBuffer) {
-                // Create a temporary image to decode the JPEG data
-                imageDataToEncode = await this.decodeImageToImageData(imageData);
-            } else if (imageData.data && imageData.width && imageData.height) {
-                // Already ImageData
-                imageDataToEncode = imageData;
-            } else {
-                throw new Error('Unsupported image data format');
-            }
+            // Use the bundled JXL encoder
+            const jxlData = await window.jxl.encode(imageData, jxlOptions);
             
-            // Use the encoder
-            const jxlData = await this.encoder.encode(imageDataToEncode, jxlOptions);
-            
-            window.debug.log('[JXL Converter] JXL conversion successful, size:', jxlData.byteLength || jxlData.length);
+            debug.log('JXL conversion successful, size:', jxlData.byteLength);
             return new Uint8Array(jxlData);
             
         } catch (error) {
-            window.debug.error('[JXL Converter] JXL conversion failed:', error);
+            debug.error('JXL conversion failed:', error);
             throw error;
         }
-    }
-
-    // Helper method to decode image bytes to ImageData
-    async decodeImageToImageData(imageBytes) {
-        return new Promise((resolve, reject) => {
-            // Convert Uint8Array to Blob
-            const blob = new Blob([imageBytes], { type: 'image/jpeg' });
-            const url = URL.createObjectURL(blob);
-            
-            const img = new Image();
-            img.onload = () => {
-                try {
-                    // Create canvas and get ImageData
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    
-                    ctx.drawImage(img, 0, 0);
-                    const imageData = ctx.getImageData(0, 0, img.width, img.height);
-                    
-                    URL.revokeObjectURL(url);
-                    resolve(imageData);
-                } catch (error) {
-                    URL.revokeObjectURL(url);
-                    reject(error);
-                }
-            };
-            img.onerror = () => {
-                URL.revokeObjectURL(url);
-                reject(new Error('Failed to load image for decoding'));
-            };
-            img.src = url;
-        });
     }
 
     // Convert a blob to JXL
@@ -231,9 +130,9 @@ const jxlConverter = new JXLConverter();
 // Auto-initialize when script loads
 jxlConverter.init().then(success => {
     if (success) {
-        window.debug.log('[JXL Converter] JXL converter ready');
+        debug.log('JXL converter ready');
     } else {
-        window.debug.error('[JXL Converter] JXL converter failed to initialize');
+        debug.error('JXL converter failed to initialize');
     }
 });
 
