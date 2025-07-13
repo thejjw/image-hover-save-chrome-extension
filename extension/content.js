@@ -745,12 +745,18 @@ async function convertImageToJXL(url, filename, options = {}) {
         
         // Check if JXL converter is available
         let encoder = null;
-        if (typeof window.jxl !== 'undefined' && window.jxl.encode) {
-            encoder = window.jxl;
-        } else if (typeof window.JXLEncoder !== 'undefined') {
-            // Try the webpack bundle format
+        if (typeof window.JXLEncoder !== 'undefined') {
+            // Use the webpack bundle format (primary)
             encoder = window.JXLEncoder.default || window.JXLEncoder;
+            debug.log('Found JXLEncoder:', typeof encoder);
+        } else if (typeof window.jxl !== 'undefined' && window.jxl.encode) {
+            // Fallback for other JXL implementations
+            encoder = window.jxl;
+            debug.log('Found window.jxl:', typeof encoder);
         }
+        
+        debug.log('Encoder object:', encoder);
+        debug.log('Encoder.encode function:', typeof encoder?.encode);
         
         if (!encoder || typeof encoder.encode !== 'function') {
             throw new Error('JXL encoder not available');
@@ -837,15 +843,28 @@ async function loadJXLConverter() {
     // Check if any JXL encoder is already available
     if ((typeof window.jxl !== 'undefined' && window.jxl.encode) || 
         (typeof window.JXLEncoder !== 'undefined')) {
+        debug.log('JXL encoder already available');
         return; // Already loaded
     }
+    
+    debug.log('Loading JXL bundle...');
     
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = chrome.runtime.getURL('lib/jxl-bundle.js');
         script.onload = () => {
-            debug.log('JXL bundle loaded successfully');
-            resolve();
+            debug.log('JXL bundle script loaded');
+            
+            // Give the bundle a moment to initialize and expose the encoder
+            setTimeout(() => {
+                if (typeof window.JXLEncoder !== 'undefined') {
+                    debug.log('JXL encoder successfully initialized');
+                    resolve();
+                } else {
+                    debug.error('JXL encoder not found after loading');
+                    reject(new Error('JXL encoder not found after loading'));
+                }
+            }, 100); // Wait 100ms for initialization
         };
         script.onerror = () => {
             debug.error('Failed to load JXL bundle');
