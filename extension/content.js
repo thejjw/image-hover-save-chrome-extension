@@ -731,11 +731,28 @@ async function convertImageToJXL(url, filename, options = {}) {
         // Convert blob to ImageData for JXL encoding
         const imageData = await blobToImageData(blob);
         
+        // Check image size limits before attempting conversion
+        const pixelCount = imageData.width * imageData.height;
+        const maxPixels = 4000000; // ~4MP limit for safety
+        const maxDimension = 3000; // Max width or height
+        
+        if (pixelCount > maxPixels || imageData.width > maxDimension || imageData.height > maxDimension) {
+            throw new Error(`Image too large for JXL conversion (${imageData.width}x${imageData.height}, ${(pixelCount/1000000).toFixed(1)}MP). Max supported: ${maxDimension}x${maxDimension}, ${(maxPixels/1000000).toFixed(1)}MP`);
+        }
+        
         // Load JXL scripts if not already loaded
         await loadJXLConverter();
         
         // Check if JXL converter is available
-        if (typeof window.jxl === 'undefined' || !window.jxl.encode) {
+        let encoder = null;
+        if (typeof window.jxl !== 'undefined' && window.jxl.encode) {
+            encoder = window.jxl;
+        } else if (typeof window.JXLEncoder !== 'undefined') {
+            // Try the webpack bundle format
+            encoder = window.JXLEncoder.default || window.JXLEncoder;
+        }
+        
+        if (!encoder || typeof encoder.encode !== 'function') {
             throw new Error('JXL encoder not available');
         }
         
@@ -748,7 +765,14 @@ async function convertImageToJXL(url, filename, options = {}) {
         };
         
         debug.log('Encoding with options:', jxlOptions);
-        const jxlData = await window.jxl.encode(imageData, jxlOptions);
+        
+        // Add timeout to prevent hanging on problematic images
+        const conversionPromise = encoder.encode(imageData, jxlOptions);
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('JXL conversion timeout (30s)')), 30000)
+        );
+        
+        const jxlData = await Promise.race([conversionPromise, timeoutPromise]);
         
         debug.log('JXL conversion successful, size:', jxlData.byteLength);
         
@@ -759,7 +783,31 @@ async function convertImageToJXL(url, filename, options = {}) {
         
     } catch (error) {
         debug.error('JXL conversion failed:', error);
-        return { success: false, error: error.message };
+        
+        // Categorize the error for better user feedback
+        let errorType = 'unknown';
+        let userMessage = error.message;
+        
+        if (error.message.includes('Aborted()')) {
+            errorType = 'memory_limit';
+            userMessage = 'Image too large for JXL conversion (memory limit exceeded)';
+        } else if (error.message.includes('timeout')) {
+            errorType = 'timeout';
+            userMessage = 'JXL conversion took too long and was cancelled';
+        } else if (error.message.includes('too large')) {
+            errorType = 'size_limit';
+            userMessage = error.message;
+        } else if (error.message.includes('not JPEG')) {
+            errorType = 'unsupported_format';
+            userMessage = error.message;
+        }
+        
+        return { 
+            success: false, 
+            error: userMessage,
+            errorType: errorType,
+            originalError: error.message
+        };
     }
 }
 
@@ -786,7 +834,9 @@ async function blobToImageData(blob) {
 
 // Load JXL converter scripts dynamically
 async function loadJXLConverter() {
-    if (typeof window.jxl !== 'undefined') {
+    // Check if any JXL encoder is already available
+    if ((typeof window.jxl !== 'undefined' && window.jxl.encode) || 
+        (typeof window.JXLEncoder !== 'undefined')) {
         return; // Already loaded
     }
     

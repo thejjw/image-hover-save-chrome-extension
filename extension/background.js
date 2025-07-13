@@ -236,7 +236,24 @@ async function downloadImageAsJXL(url, originalFilename, options = {}) {
         });
         
         if (!result.success) {
-            throw new Error(result.error || 'JXL conversion failed');
+            // Handle different types of JXL conversion failures
+            const errorType = result.errorType || 'unknown';
+            
+            debug.warn(`JXL conversion failed (${errorType}): ${result.error}`);
+            
+            // Always fallback to normal download for any JXL conversion failure
+            if (errorType === 'memory_limit' || errorType === 'size_limit') {
+                debug.log('Image too large for JXL conversion, downloading original JPEG');
+            } else if (errorType === 'timeout') {
+                debug.log('JXL conversion timed out, downloading original JPEG');
+            } else if (errorType === 'unsupported_format') {
+                debug.log('Format not supported for JXL conversion, downloading original');
+            } else {
+                debug.log('JXL conversion failed, downloading original');
+            }
+            
+            // Fallback to normal download
+            return downloadImage(url, originalFilename, 'normal');
         }
         
         // Download the converted JXL data
@@ -260,7 +277,7 @@ async function downloadImageAsJXL(url, originalFilename, options = {}) {
     } catch (error) {
         debug.error('JXL download failed:', error);
         debug.warn('Falling back to normal download');
-        // Fallback to normal download
+        // Fallback to normal download for any other errors
         return downloadImage(url, originalFilename, 'normal');
     }
 }

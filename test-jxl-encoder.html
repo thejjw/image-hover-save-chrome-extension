@@ -276,6 +276,20 @@
             try {
                 const startTime = performance.now();
                 
+                // Check image size before conversion
+                const pixelCount = currentImageData.width * currentImageData.height;
+                const maxPixels = 4000000; // ~4MP limit
+                const maxDimension = 3000;
+                
+                if (pixelCount > maxPixels || currentImageData.width > maxDimension || currentImageData.height > maxDimension) {
+                    log('conversion-result', 
+                        `⚠️ Large image detected: ${currentImageData.width}x${currentImageData.height} (${(pixelCount/1000000).toFixed(1)}MP)\n` +
+                        `This may fail due to memory limits. Recommended max: ${maxDimension}x${maxDimension} (${(maxPixels/1000000).toFixed(1)}MP)\n` +
+                        `Attempting conversion...`, 
+                        false
+                    );
+                }
+                
                 const options = {
                     quality: document.getElementById('lossless').checked ? 100 : parseInt(document.getElementById('quality').value),
                     lossless: document.getElementById('lossless').checked,
@@ -292,7 +306,13 @@
                     throw new Error('Encoder or encode function not available');
                 }
 
-                const jxlData = await encoder.encode(currentImageData, options);
+                // Add timeout for large images
+                const conversionPromise = encoder.encode(currentImageData, options);
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Conversion timeout (30 seconds)')), 30000)
+                );
+                
+                const jxlData = await Promise.race([conversionPromise, timeoutPromise]);
                 
                 const endTime = performance.now();
                 const originalSize = currentImageData.data.length;
@@ -312,6 +332,7 @@
                 const resultDiv = document.getElementById('conversion-result');
                 log('conversion-result', 
                     `✓ Conversion successful!\n` +
+                    `Image: ${currentImageData.width}x${currentImageData.height} (${(pixelCount/1000000).toFixed(1)}MP)\n` +
                     `Original size: ${originalSize} bytes\n` +
                     `JXL size: ${jxlSize} bytes\n` +
                     `Compression ratio: ${compressionRatio}:1\n` +
@@ -323,7 +344,21 @@
                 resultDiv.appendChild(downloadLink);
 
             } catch (error) {
-                log('conversion-result', `✗ Conversion failed: ${error.message}`, true);
+                let errorMessage = `✗ Conversion failed: ${error.message}`;
+                
+                // Provide helpful suggestions based on error type
+                if (error.message.includes('Aborted()')) {
+                    errorMessage += '\n\n💡 This usually means the image is too large for the WASM encoder.';
+                    errorMessage += '\n   Try resizing the image to under 3000x3000 pixels.';
+                } else if (error.message.includes('timeout')) {
+                    errorMessage += '\n\n💡 Large images can take a long time to encode.';
+                    errorMessage += '\n   Try using a smaller image or lower effort setting.';
+                } else if (error.message.includes('memory')) {
+                    errorMessage += '\n\n💡 Not enough memory to encode this image.';
+                    errorMessage += '\n   Try closing other browser tabs or use a smaller image.';
+                }
+                
+                log('conversion-result', errorMessage, true);
                 console.error('JXL conversion error:', error);
             }
         }

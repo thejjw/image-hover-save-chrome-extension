@@ -51,8 +51,25 @@ class JXLConverter {
         debug.log('Converting image to JXL, lossless:', lossless);
         
         try {
+            // Check image size limits before attempting conversion
+            const pixelCount = imageData.width * imageData.height;
+            const maxPixels = 4000000; // ~4MP limit for safety
+            const maxDimension = 3000; // Max width or height
+            
+            if (pixelCount > maxPixels || imageData.width > maxDimension || imageData.height > maxDimension) {
+                throw new Error(`Image too large for JXL conversion (${imageData.width}x${imageData.height}, ${(pixelCount/1000000).toFixed(1)}MP). Max supported: ${maxDimension}x${maxDimension}, ${(maxPixels/1000000).toFixed(1)}MP`);
+            }
+            
             // Check if window.jxl is available (loaded by jxl.bundle.js)
-            if (typeof window === 'undefined' || !window.jxl || !window.jxl.encode) {
+            let encoder = null;
+            if (typeof window !== 'undefined' && window.jxl && window.jxl.encode) {
+                encoder = window.jxl;
+            } else if (typeof window !== 'undefined' && window.JXLEncoder) {
+                // Try the webpack bundle format
+                encoder = window.JXLEncoder.default || window.JXLEncoder;
+            }
+            
+            if (!encoder || typeof encoder.encode !== 'function') {
                 throw new Error('JXL encoder not available. Make sure jxl.bundle.js is loaded.');
             }
 
@@ -66,14 +83,27 @@ class JXLConverter {
 
             debug.log('Encoding with options:', jxlOptions);
             
-            // Use the bundled JXL encoder
-            const jxlData = await window.jxl.encode(imageData, jxlOptions);
+            // Add timeout to prevent hanging on problematic images
+            const conversionPromise = encoder.encode(imageData, jxlOptions);
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('JXL conversion timeout (30s)')), 30000)
+            );
+            
+            const jxlData = await Promise.race([conversionPromise, timeoutPromise]);
             
             debug.log('JXL conversion successful, size:', jxlData.byteLength);
             return new Uint8Array(jxlData);
             
         } catch (error) {
             debug.error('JXL conversion failed:', error);
+            
+            // Provide more specific error messages
+            if (error.message.includes('Aborted()')) {
+                throw new Error('Image too large for JXL conversion (memory limit exceeded)');
+            } else if (error.message.includes('timeout')) {
+                throw new Error('JXL conversion took too long and was cancelled');
+            }
+            
             throw error;
         }
     }
