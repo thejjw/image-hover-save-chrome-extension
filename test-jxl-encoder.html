@@ -191,24 +191,43 @@
 
         function testEncoderInfo() {
             try {
+                console.log('Testing JXL Encoder...');
+                console.log('window.JXLEncoder:', window.JXLEncoder);
+                console.log('typeof window.JXLEncoder:', typeof window.JXLEncoder);
+                
                 if (typeof window.JXLEncoder === 'undefined') {
                     throw new Error('JXLEncoder not found on window object');
                 }
 
                 const encoder = window.JXLEncoder;
+                console.log('encoder object:', encoder);
+                console.log('encoder.default:', encoder.default);
+                
+                // Try to access the actual encoder (might be in .default)
+                const actualEncoder = encoder.default || encoder;
+                console.log('actualEncoder:', actualEncoder);
+                console.log('actualEncoder methods:', Object.keys(actualEncoder));
+
                 const info = {
-                    isSupported: encoder.isSupported(),
-                    version: encoder.getVersion(),
-                    hasEncode: typeof encoder.encode === 'function'
+                    isSupported: typeof actualEncoder.isSupported === 'function' ? actualEncoder.isSupported() : 'function not found',
+                    version: typeof actualEncoder.getVersion === 'function' ? actualEncoder.getVersion() : 'function not found',
+                    hasEncode: typeof actualEncoder.encode === 'function'
                 };
 
                 log('info-result', 
-                    `✓ JXL Encoder loaded successfully!\n` +
+                    `✓ JXL Encoder analysis:\n` +
+                    `Encoder type: ${typeof actualEncoder}\n` +
+                    `Available methods: ${Object.keys(actualEncoder).join(', ')}\n` +
                     `Supported: ${info.isSupported}\n` +
                     `Version: ${info.version}\n` +
                     `Has encode function: ${info.hasEncode}`
                 );
+                
+                // Store the actual encoder for later use
+                window.actualJXLEncoder = actualEncoder;
+                
             } catch (error) {
+                console.error('testEncoderInfo error:', error);
                 log('info-result', `✗ Error: ${error.message}`, true);
             }
         }
@@ -265,7 +284,15 @@
 
                 log('conversion-result', `Converting with options: ${JSON.stringify(options)}\nPlease wait...`);
 
-                const jxlData = await window.JXLEncoder.encode(currentImageData, options);
+                // Use the actual encoder we found during info test
+                const encoder = window.actualJXLEncoder || window.JXLEncoder.default || window.JXLEncoder;
+                console.log('Using encoder:', encoder);
+                
+                if (!encoder || typeof encoder.encode !== 'function') {
+                    throw new Error('Encoder or encode function not available');
+                }
+
+                const jxlData = await encoder.encode(currentImageData, options);
                 
                 const endTime = performance.now();
                 const originalSize = currentImageData.data.length;
@@ -355,6 +382,14 @@
 
             let results = 'Performance Test Results:\n\n';
 
+            // Use the actual encoder we found during info test
+            const encoder = window.actualJXLEncoder || window.JXLEncoder.default || window.JXLEncoder;
+            
+            if (!encoder || typeof encoder.encode !== 'function') {
+                log('performance-result', '✗ Encoder not available for performance test', true);
+                return;
+            }
+
             for (const size of sizes) {
                 try {
                     // Generate test image
@@ -375,7 +410,7 @@
                     
                     // Test encoding
                     const startTime = performance.now();
-                    const jxlData = await window.JXLEncoder.encode(imageData, { quality: 80, lossless: false });
+                    const jxlData = await encoder.encode(imageData, { quality: 80, lossless: false });
                     const endTime = performance.now();
                     
                     const timeTaken = (endTime - startTime).toFixed(2);
