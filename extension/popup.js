@@ -98,9 +98,20 @@ async function initializePopup() {
         
         // Set experimental download mode
         const downloadMode = await storage.get('ihs_download_mode') || 'normal';
-        document.getElementById('downloadMode' + downloadMode.charAt(0).toUpperCase() + downloadMode.slice(1)).checked = true;
+        const downloadModeElementId = 'downloadMode' + downloadMode.charAt(0).toUpperCase() + downloadMode.slice(1);
+        const downloadModeElement = document.getElementById(downloadModeElementId);
         
-        // Set up download mode UI
+        if (downloadModeElement) {
+            downloadModeElement.checked = true;
+        } else {
+            debug.warn('[IHS Popup] Download mode element not found:', downloadModeElementId, 'falling back to normal mode');
+            const normalModeElement = document.getElementById('downloadModeNormal');
+            if (normalModeElement) {
+                normalModeElement.checked = true;
+            }
+        }
+        
+        // Set up download mode UI (always call this, even if there was an error above)
         setupDownloadModeUI(downloadMode);
         
         // Set allowed extensions
@@ -153,7 +164,7 @@ function setupDownloadModeUI(currentMode) {
     });
     
     // Auto-expand if experimental mode is selected
-    if (currentMode !== 'normal') {
+    if (currentMode === 'cache' || currentMode === 'canvas' || currentMode === 'jxl') {
         downloadModeSection.classList.remove('collapsed');
         expandButton.classList.add('expanded');
         expandButton.textContent = '⚙️ Hide Advanced';
