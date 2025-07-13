@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JXL Encoder Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .controls {
+            margin: 10px 0;
+        }
+        .controls label {
+            display: inline-block;
+            width: 120px;
+            margin-right: 10px;
+        }
+        .controls input, .controls select {
+            margin-right: 15px;
+            padding: 4px;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            border-left: 4px solid #28a745;
+            background: #d4edda;
+        }
+        .error {
+            border-left: 4px solid #dc3545;
+            background: #f8d7da;
+        }
+        .image-preview {
+            max-width: 300px;
+            max-height: 300px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .download-link {
+            display: inline-block;
+            margin: 10px 0;
+            padding: 8px 12px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .download-link:hover {
+            background: #1e7e34;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>JXL Encoder Test</h1>
+        <p>Testing the webpack-bundled JXL encoder with inline WASM.</p>
+
+        <!-- Basic Info Section -->
+        <div class="test-section">
+            <h3>1. Encoder Information</h3>
+            <button onclick="testEncoderInfo()">Test Encoder Info</button>
+            <div id="info-result" class="result"></div>
+        </div>
+
+        <!-- Image Upload Test -->
+        <div class="test-section">
+            <h3>2. Upload Image Test</h3>
+            <input type="file" id="image-input" accept="image/*" onchange="handleImageUpload(event)">
+            <div id="image-preview"></div>
+            
+            <div class="controls">
+                <label>Quality:</label>
+                <input type="range" id="quality" min="1" max="100" value="90">
+                <span id="quality-value">90</span>
+            </div>
+            
+            <div class="controls">
+                <label>Lossless:</label>
+                <input type="checkbox" id="lossless" onchange="handleLosslessChange()">
+            </div>
+            
+            <div class="controls">
+                <label>Effort:</label>
+                <select id="effort">
+                    <option value="1">1 (Fastest)</option>
+                    <option value="3">3</option>
+                    <option value="5">5</option>
+                    <option value="7" selected>7 (Default)</option>
+                    <option value="9">9 (Slowest/Best)</option>
+                </select>
+            </div>
+            
+            <button onclick="convertToJXL()" id="convert-btn" disabled>Convert to JXL</button>
+            <div id="conversion-result" class="result"></div>
+        </div>
+
+        <!-- Sample Image Test -->
+        <div class="test-section">
+            <h3>3. Sample Image Test</h3>
+            <p>Test with a generated sample image (100x100 gradient).</p>
+            <button onclick="testSampleImage()">Generate & Convert Sample</button>
+            <canvas id="sample-canvas" width="100" height="100"></canvas>
+            <div id="sample-result" class="result"></div>
+        </div>
+
+        <!-- Performance Test -->
+        <div class="test-section">
+            <h3>4. Performance Test</h3>
+            <p>Test encoding speed with different image sizes.</p>
+            <button onclick="runPerformanceTest()">Run Performance Test</button>
+            <div id="performance-result" class="result"></div>
+        </div>
+    </div>
+
+    <!-- Load the JXL Bundle -->
+    <script src="extension/jxl-bundle.js"></script>
+
+    <script>
+        let currentImageData = null;
+
+        // Update quality display
+        document.getElementById('quality').addEventListener('input', function() {
+            document.getElementById('quality-value').textContent = this.value;
+        });
+
+        function handleLosslessChange() {
+            const lossless = document.getElementById('lossless').checked;
+            const qualityControl = document.getElementById('quality');
+            const qualityValue = document.getElementById('quality-value');
+            
+            if (lossless) {
+                qualityControl.disabled = true;
+                qualityValue.textContent = '100 (Lossless)';
+            } else {
+                qualityControl.disabled = false;
+                qualityValue.textContent = qualityControl.value;
+            }
+        }
+
+        function log(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = 'result ' + (isError ? 'error' : 'success');
+        }
+
+        function testEncoderInfo() {
+            try {
+                if (typeof window.JXLEncoder === 'undefined') {
+                    throw new Error('JXLEncoder not found on window object');
+                }
+
+                const encoder = window.JXLEncoder;
+                const info = {
+                    isSupported: encoder.isSupported(),
+                    version: encoder.getVersion(),
+                    hasEncode: typeof encoder.encode === 'function'
+                };
+
+                log('info-result', 
+                    `✓ JXL Encoder loaded successfully!\n` +
+                    `Supported: ${info.isSupported}\n` +
+                    `Version: ${info.version}\n` +
+                    `Has encode function: ${info.hasEncode}`
+                );
+            } catch (error) {
+                log('info-result', `✗ Error: ${error.message}`, true);
+            }
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // Create canvas and get ImageData
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    
+                    currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // Show preview
+                    const preview = document.getElementById('image-preview');
+                    preview.innerHTML = '';
+                    const previewImg = img.cloneNode();
+                    previewImg.className = 'image-preview';
+                    preview.appendChild(previewImg);
+                    
+                    const info = document.createElement('p');
+                    info.textContent = `Loaded: ${img.width}x${img.height}, ${currentImageData.data.length} bytes`;
+                    preview.appendChild(info);
+                    
+                    document.getElementById('convert-btn').disabled = false;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function convertToJXL() {
+            if (!currentImageData) {
+                log('conversion-result', '✗ No image loaded', true);
+                return;
+            }
+
+            try {
+                const startTime = performance.now();
+                
+                const options = {
+                    quality: document.getElementById('lossless').checked ? 100 : parseInt(document.getElementById('quality').value),
+                    lossless: document.getElementById('lossless').checked,
+                    effort: parseInt(document.getElementById('effort').value)
+                };
+
+                log('conversion-result', `Converting with options: ${JSON.stringify(options)}\nPlease wait...`);
+
+                const jxlData = await window.JXLEncoder.encode(currentImageData, options);
+                
+                const endTime = performance.now();
+                const originalSize = currentImageData.data.length;
+                const jxlSize = jxlData.byteLength;
+                const compressionRatio = (originalSize / jxlSize).toFixed(2);
+                const timeTaken = (endTime - startTime).toFixed(2);
+
+                // Create download link
+                const blob = new Blob([jxlData], { type: 'image/jxl' });
+                const url = URL.createObjectURL(blob);
+                const downloadLink = document.createElement('a');
+                downloadLink.href = url;
+                downloadLink.download = 'converted.jxl';
+                downloadLink.className = 'download-link';
+                downloadLink.textContent = 'Download JXL File';
+
+                const resultDiv = document.getElementById('conversion-result');
+                log('conversion-result', 
+                    `✓ Conversion successful!\n` +
+                    `Original size: ${originalSize} bytes\n` +
+                    `JXL size: ${jxlSize} bytes\n` +
+                    `Compression ratio: ${compressionRatio}:1\n` +
+                    `Time taken: ${timeTaken}ms\n` +
+                    `Options used: ${JSON.stringify(options)}`
+                );
+                
+                resultDiv.appendChild(document.createElement('br'));
+                resultDiv.appendChild(downloadLink);
+
+            } catch (error) {
+                log('conversion-result', `✗ Conversion failed: ${error.message}`, true);
+                console.error('JXL conversion error:', error);
+            }
+        }
+
+        function testSampleImage() {
+            try {
+                // Generate a colorful gradient sample
+                const canvas = document.getElementById('sample-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Create gradient
+                const gradient = ctx.createLinearGradient(0, 0, 100, 100);
+                gradient.addColorStop(0, '#ff0000');
+                gradient.addColorStop(0.33, '#00ff00');
+                gradient.addColorStop(0.66, '#0000ff');
+                gradient.addColorStop(1, '#ffff00');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 100, 100);
+                
+                // Add some shapes for complexity
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fillRect(20, 20, 30, 30);
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.beginPath();
+                ctx.arc(75, 75, 15, 0, 2 * Math.PI);
+                ctx.fill();
+
+                currentImageData = ctx.getImageData(0, 0, 100, 100);
+                
+                // Auto-convert the sample
+                convertToJXL().then(() => {
+                    log('sample-result', 
+                        `✓ Sample image generated and converted!\n` +
+                        `Image: 100x100 gradient with shapes\n` +
+                        `Check conversion result above.`
+                    );
+                });
+
+            } catch (error) {
+                log('sample-result', `✗ Sample generation failed: ${error.message}`, true);
+            }
+        }
+
+        async function runPerformanceTest() {
+            const resultDiv = document.getElementById('performance-result');
+            log('performance-result', 'Running performance tests...');
+
+            const sizes = [
+                { width: 50, height: 50, name: '50x50' },
+                { width: 100, height: 100, name: '100x100' },
+                { width: 200, height: 200, name: '200x200' },
+                { width: 400, height: 400, name: '400x400' }
+            ];
+
+            let results = 'Performance Test Results:\n\n';
+
+            for (const size of sizes) {
+                try {
+                    // Generate test image
+                    const canvas = document.createElement('canvas');
+                    canvas.width = size.width;
+                    canvas.height = size.height;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Fill with random colors
+                    for (let y = 0; y < size.height; y += 10) {
+                        for (let x = 0; x < size.width; x += 10) {
+                            ctx.fillStyle = `hsl(${Math.random() * 360}, 70%, 50%)`;
+                            ctx.fillRect(x, y, 10, 10);
+                        }
+                    }
+                    
+                    const imageData = ctx.getImageData(0, 0, size.width, size.height);
+                    
+                    // Test encoding
+                    const startTime = performance.now();
+                    const jxlData = await window.JXLEncoder.encode(imageData, { quality: 80, lossless: false });
+                    const endTime = performance.now();
+                    
+                    const timeTaken = (endTime - startTime).toFixed(2);
+                    const originalSize = imageData.data.length;
+                    const jxlSize = jxlData.byteLength;
+                    const ratio = (originalSize / jxlSize).toFixed(2);
+                    
+                    results += `${size.name}: ${timeTaken}ms, ${ratio}:1 compression\n`;
+                    
+                } catch (error) {
+                    results += `${size.name}: ERROR - ${error.message}\n`;
+                }
+            }
+
+            log('performance-result', results);
+        }
+
+        // Auto-run encoder info test when page loads
+        window.addEventListener('load', function() {
+            setTimeout(testEncoderInfo, 500);
+        });
+    </script>
+</body>
+</html>
