@@ -855,16 +855,64 @@ async function loadJXLConverter() {
         script.onload = () => {
             debug.log('JXL bundle script loaded');
             
-            // Give the bundle a moment to initialize and expose the encoder
-            setTimeout(() => {
+            // Check immediately what's available
+            debug.log('Immediately after load - window.JXLEncoder:', typeof window.JXLEncoder);
+            debug.log('Immediately after load - window.jxl:', typeof window.jxl);
+            debug.log('Window keys containing "jxl" or "JXL":', Object.keys(window).filter(key => 
+                key.toLowerCase().includes('jxl')));
+            
+            // Give the bundle more time to initialize and expose the encoder
+            let attempts = 0;
+            const maxAttempts = 30; // Try for 3 seconds total
+            
+            const checkEncoder = () => {
+                attempts++;
+                debug.log(`Attempt ${attempts}: checking for JXL encoder...`);
+                
+                // More detailed logging every 5th attempt to avoid spam
+                if (attempts % 5 === 0 || attempts === 1) {
+                    debug.log('All window keys:', Object.keys(window).length);
+                    debug.log('JXL-related keys:', Object.keys(window).filter(key => 
+                        key.toLowerCase().includes('jxl') || key.includes('JXL') || key.includes('encoder')));
+                    debug.log('Script still in DOM:', !!document.querySelector(`script[src="${script.src}"]`));
+                }
+                
+                debug.log('window.JXLEncoder:', typeof window.JXLEncoder);
+                debug.log('window.jxl:', typeof window.jxl);
+                
                 if (typeof window.JXLEncoder !== 'undefined') {
                     debug.log('JXL encoder successfully initialized');
+                    debug.log('JXLEncoder object:', window.JXLEncoder);
+                    debug.log('JXLEncoder.encode:', typeof window.JXLEncoder.encode);
+                    debug.log('JXLEncoder.default:', typeof window.JXLEncoder.default);
+                    if (window.JXLEncoder.default) {
+                        debug.log('JXLEncoder.default.encode:', typeof window.JXLEncoder.default.encode);
+                    }
                     resolve();
-                } else {
-                    debug.error('JXL encoder not found after loading');
+                } else if (typeof window.jxl !== 'undefined' && window.jxl.encode) {
+                    debug.log('Alternative JXL encoder found');
+                    resolve();
+                } else if (attempts >= maxAttempts) {
+                    debug.error('JXL encoder not found after', maxAttempts, 'attempts');
+                    debug.log('Final window keys:', Object.keys(window).filter(key => 
+                        key.toLowerCase().includes('jxl') || key.includes('JXL') || key.includes('encoder')));
+                    debug.log('Final check - typeof window.JXLEncoder:', typeof window.JXLEncoder);
+                    debug.log('Final check - typeof window.jxl:', typeof window.jxl);
+                    
+                    // Try to inspect the global object more thoroughly
+                    if (typeof window.JXLEncoder !== 'undefined') {
+                        debug.log('JXLEncoder exists but might not be fully initialized:', window.JXLEncoder);
+                    }
+                    
                     reject(new Error('JXL encoder not found after loading'));
+                } else {
+                    // Try again after 100ms
+                    setTimeout(checkEncoder, 100);
                 }
-            }, 100); // Wait 100ms for initialization
+            };
+            
+            // Start checking
+            setTimeout(checkEncoder, 100);
         };
         script.onerror = () => {
             debug.error('Failed to load JXL bundle');
