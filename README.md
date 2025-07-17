@@ -19,7 +19,9 @@ A Chrome extension that allows you to quickly save images by hovering over them 
 2. Open Chrome and go to `chrome://extensions/`
 3. Enable "Developer mode" (top right)
 4. Click "Load unpacked" and select the `extension` folder
-5. The extension is now ready to use!
+
+**Alternatively, install from the [Chrome Web Store](https://chromewebstore.google.com/detail/image-hover-save/lhmljebjlhdafkminimimaokjliabegg)**  
+_(Note: The Chrome Web Store version may not always have the latest updates.)_
 
 ## Usage
 
