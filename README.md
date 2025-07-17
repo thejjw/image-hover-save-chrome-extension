@@ -37,7 +37,6 @@ _(Note: The Chrome Web Store version may not always have the latest updates.)_
 - `storage`: Required to save your preferences and settings
 - `tabs`: Required for cross-tab preference communication and badge indicators
 - `activeTab`: Required to interact with the current webpage
-- `scripting`: Required to inject the hover detection functionality
 - `<all_urls>`: Required to work on all websites
 
 ## Privacy
