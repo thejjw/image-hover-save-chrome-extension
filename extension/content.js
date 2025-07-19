@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: zlib-acknowledgement
 
 // Debug flag - set to false to disable all console output
-const DEBUG = true;
+const DEBUG = false;
 
 // Debug console wrapper
 const debug = {

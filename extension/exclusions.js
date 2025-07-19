@@ -6,7 +6,7 @@
 const EXTENSION_VERSION = '1.0.0';
 
 // Debug flag
-const DEBUG = true;
+const DEBUG = false;
 
 // Debug console wrapper
 const debug = {

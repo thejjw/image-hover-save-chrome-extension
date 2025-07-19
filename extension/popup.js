@@ -9,7 +9,7 @@
 const EXTENSION_VERSION = '1.0.0';
 
 // Debug flag - set to false to disable all console output
-const DEBUG = true;
+const DEBUG = false;
 
 // Debug console wrapper
 const debug = {
@@ -917,7 +917,7 @@ function createGalleryHtml(images, pageTitle) {
             
             <script>
                 // Debug wrapper for gallery page
-                const DEBUG = true;
+                const DEBUG = false;
                 const debug = {
                     log: (...args) => DEBUG && console.log(...args),
                     error: (...args) => DEBUG && console.error(...args),
