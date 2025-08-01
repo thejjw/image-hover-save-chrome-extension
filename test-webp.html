@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebP to PNG Conversion Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-image { margin: 20px 0; border: 1px solid #ccc; padding: 10px; }
+        img { max-width: 300px; height: auto; }
+    </style>
+</head>
+<body>
+    <h1>WebP to PNG Conversion Test</h1>
+    
+    <div class="test-image">
+        <h3>Test 1: WebP image with .webp extension</h3>
+        <img src="https://developers.google.com/speed/webp/gallery/1.webp" alt="WebP Test Image 1" />
+        <p>URL: https://developers.google.com/speed/webp/gallery/1.webp</p>
+    </div>
+    
+    <div class="test-image">
+        <h3>Test 2: WebP image with query parameters</h3>
+        <img src="https://developers.google.com/speed/webp/gallery/2.webp?format=webp" alt="WebP Test Image 2" />
+        <p>URL: https://developers.google.com/speed/webp/gallery/2.webp?format=webp</p>
+    </div>
+    
+    <div class="test-image">
+        <h3>Test 3: Regular PNG image (should not convert)</h3>
+        <img src="https://www.w3schools.com/css/img_lights.jpg" alt="Regular JPG Image" />
+        <p>URL: https://www.w3schools.com/css/img_lights.jpg</p>
+    </div>
+    
+    <script>
+        // Test WebP detection logic
+        function testWebPDetection(url) {
+            const isWebP = url.toLowerCase().includes('.webp') || url.toLowerCase().includes('webp');
+            console.log(`URL: ${url} - Is WebP: ${isWebP}`);
+            return isWebP;
+        }
+        
+        // Test the detection logic
+        const testUrls = [
+            'https://example.com/image.webp',
+            'https://example.com/image.WEBP',
+            'https://example.com/image.webp?format=webp&size=large',
+            'https://example.com/image.jpg',
+            'https://example.com/image.png',
+            'https://cdn.example.com/webp/image.jpg' // This should detect as webp due to 'webp' in path
+        ];
+        
+        console.log('WebP Detection Tests:');
+        testUrls.forEach(testWebPDetection);
+    </script>
+</body>
+</html>

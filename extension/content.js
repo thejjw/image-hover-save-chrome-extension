@@ -31,6 +31,7 @@ let detectImg = true;
 let detectVideo = true;
 let detectSvg = false;
 let detectBackground = false;
+let convertWebpToPng = false;
 
 // Storage helper
 const storage = {
@@ -55,6 +56,7 @@ async function initializeExtension() {
         const videoDetect = await storage.get('ihs_detect_video');
         const svgDetect = await storage.get('ihs_detect_svg');
         const bgDetect = await storage.get('ihs_detect_background');
+        const webpToPngConvert = await storage.get('ihs_convert_webp_to_png');
         
         isEnabled = enabled !== false; // Default to true
         hoverDelay = delay || CONFIG.DEFAULT_HOVER_DELAY;
@@ -63,6 +65,7 @@ async function initializeExtension() {
         detectVideo = videoDetect !== false; // Default: true
         detectSvg = svgDetect === true; // Default: false
         detectBackground = bgDetect === true; // Default: false
+        convertWebpToPng = webpToPngConvert === true; // Default: false
         
         // Check domain exclusions
         await checkDomainExclusion();
@@ -77,7 +80,7 @@ async function initializeExtension() {
         
         debug.log('Extension initialized:', { 
             isEnabled, hoverDelay, minImageSize, isDomainExcluded,
-            detectImg, detectVideo, detectSvg, detectBackground 
+            detectImg, detectVideo, detectSvg, detectBackground, convertWebpToPng 
         });
     } catch (error) {
         debug.warn('Failed to load settings:', error);
@@ -180,6 +183,45 @@ function downloadElement(element) {
         // Send download request to background script
         chrome.storage.sync.get(['ihs_download_mode'], async (result) => {
             const downloadMode = result.ihs_download_mode || 'normal';
+            
+            // Check if we should convert WebP to PNG
+            let shouldConvertWebp = false;
+            if (convertWebpToPng && elementUrl && 
+                (elementUrl.toLowerCase().includes('.webp') || elementUrl.toLowerCase().includes('webp'))) {
+                shouldConvertWebp = true;
+                debug.log('WebP detected and conversion enabled, will convert to PNG');
+            }
+            
+            // Handle WebP to PNG conversion
+            if (shouldConvertWebp) {
+                try {
+                    const pngBlob = await convertWebpImageToPng(element);
+                    if (pngBlob) {
+                        // Send PNG blob data to background script
+                        const reader = new FileReader();
+                        reader.onload = function() {
+                            // Update filename to have .png extension
+                            let pngFilename = filename.replace(/\.(webp|WEBP)$/i, '.png');
+                            if (!pngFilename.endsWith('.png')) {
+                                pngFilename = pngFilename.replace(/\.[^.]+$/, '.png');
+                            }
+                            
+                            chrome.runtime.sendMessage({
+                                type: 'download_canvas_image',
+                                dataUrl: reader.result,
+                                filename: pngFilename,
+                                downloadMode: 'webp_conversion'
+                            });
+                        };
+                        reader.readAsDataURL(pngBlob);
+                        return;
+                    } else {
+                        debug.warn('WebP to PNG conversion failed, falling back to normal download');
+                    }
+                } catch (conversionError) {
+                    debug.warn('WebP to PNG conversion error, falling back to normal download:', conversionError);
+                }
+            }
             
             // Handle canvas extraction mode
             if (downloadMode === 'canvas') {
@@ -468,9 +510,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.settings.minImageSize !== undefined) {
                 minImageSize = message.settings.minImageSize;
             }
+            if (message.settings.convertWebpToPng !== undefined) {
+                convertWebpToPng = message.settings.convertWebpToPng;
+            }
             
             debug.log('Settings updated:', { 
-                detectImg, detectVideo, detectSvg, detectBackground, minImageSize 
+                detectImg, detectVideo, detectSvg, detectBackground, minImageSize, convertWebpToPng 
             });
             
             sendResponse({ success: true });
@@ -562,6 +607,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         if (changes.ihs_hover_delay) {
             hoverDelay = changes.ihs_hover_delay.newValue || CONFIG.DEFAULT_HOVER_DELAY;
             debug.log('Hover delay changed:', hoverDelay);
+        }
+        
+        if (changes.ihs_convert_webp_to_png) {
+            convertWebpToPng = changes.ihs_convert_webp_to_png.newValue === true;
+            debug.log('WebP to PNG conversion changed:', convertWebpToPng);
         }
         
         if (changes.ihs_domain_exclusions) {
@@ -679,6 +729,108 @@ async function extractImageToCanvas(element) {
         
     } catch (error) {
         debug.error('Canvas extraction error:', error);
+        return null;
+    }
+}
+
+// Convert WebP image to PNG using canvas
+async function convertWebpImageToPng(element) {
+    try {
+        debug.log('Attempting WebP to PNG conversion for element:', element.tagName);
+        
+        let sourceUrl = null;
+        
+        // Handle different element types
+        if (element.tagName === 'IMG') {
+            sourceUrl = element.src;
+        } else {
+            // For background images or other elements, try to extract the URL
+            const computedStyle = window.getComputedStyle(element);
+            const backgroundImage = computedStyle.backgroundImage;
+            
+            if (backgroundImage && backgroundImage !== 'none') {
+                const urlMatch = backgroundImage.match(/url\(["']?([^"')]+)["']?\)/);
+                if (urlMatch) {
+                    sourceUrl = urlMatch[1];
+                }
+            }
+        }
+        
+        if (!sourceUrl) {
+            debug.warn('No source URL found for WebP conversion');
+            return null;
+        }
+        
+        // Check if the image is WebP
+        if (!sourceUrl.toLowerCase().includes('.webp') && !sourceUrl.toLowerCase().includes('webp')) {
+            debug.log('Image is not WebP, skipping conversion');
+            return null;
+        }
+        
+        debug.log('Converting WebP to PNG, source URL:', sourceUrl);
+        
+        // Create a new image element to load the WebP
+        const img = new Image();
+        
+        // Set up cross-origin handling
+        img.crossOrigin = 'anonymous';
+        
+        return new Promise((resolve, reject) => {
+            img.onload = function() {
+                try {
+                    debug.log('WebP image loaded for conversion, dimensions:', img.naturalWidth, 'x', img.naturalHeight);
+                    
+                    // Create canvas
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Set canvas dimensions to match image
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    
+                    // Draw WebP image to canvas
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // Convert canvas to PNG blob
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            debug.log('WebP to PNG conversion successful, blob size:', blob.size);
+                            resolve(blob);
+                        } else {
+                            debug.warn('Failed to create PNG blob from WebP');
+                            resolve(null);
+                        }
+                    }, 'image/png', 1.0);
+                    
+                } catch (canvasError) {
+                    debug.error('WebP to PNG conversion error:', canvasError);
+                    resolve(null);
+                }
+            };
+            
+            img.onerror = function() {
+                debug.warn('Failed to load WebP image for conversion');
+                resolve(null);
+            };
+            
+            // Handle CORS errors gracefully
+            img.onabort = function() {
+                debug.warn('WebP image loading aborted for conversion');
+                resolve(null);
+            };
+            
+            // Start loading the WebP image
+            img.src = sourceUrl;
+            
+            // Set a timeout to avoid hanging
+            setTimeout(() => {
+                debug.warn('WebP to PNG conversion timeout');
+                resolve(null);
+            }, 10000);
+        });
+        
+    } catch (error) {
+        debug.error('WebP to PNG conversion error:', error);
         return null;
     }
 }
