@@ -767,7 +767,17 @@ async function convertWebpImageToPng(element) {
             return null;
         }
         
-        debug.log('Converting WebP to PNG, source URL:', sourceUrl);
+        // Check if the WebP is animated before converting
+        const isAnimated = await isAnimatedWebP(sourceUrl);
+        if (isAnimated === true) {
+            debug.log('WebP is animated, skipping PNG conversion to preserve animation');
+            return null;
+        } else if (isAnimated === null) {
+            debug.warn('Could not determine if WebP is animated, skipping conversion for safety');
+            return null;
+        }
+        
+        debug.log('Converting static WebP to PNG, source URL:', sourceUrl);
         
         // Create a new image element to load the WebP
         const img = new Image();
@@ -831,6 +841,117 @@ async function convertWebpImageToPng(element) {
         
     } catch (error) {
         debug.error('WebP to PNG conversion error:', error);
+        return null;
+    }
+}
+
+// Check if a WebP image is animated by examining its file header
+async function isAnimatedWebP(url) {
+    try {
+        debug.log('Checking if WebP is animated:', url);
+        
+        // Fetch only the first few KB to check the header
+        const response = await fetch(url, {
+            headers: {
+                'Range': 'bytes=0-1024' // Only fetch first 1KB for header analysis
+            }
+        });
+        
+        if (!response.ok) {
+            debug.warn('Failed to fetch WebP for animation check:', response.status);
+            return null;
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        
+        // Check WebP signature first: "RIFF" + 4 bytes + "WEBP"
+        if (bytes.length < 12) {
+            debug.warn('WebP file too small for header analysis');
+            return null;
+        }
+        
+        // Check RIFF signature
+        const riffSig = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+        if (riffSig !== 'RIFF') {
+            debug.warn('Not a valid RIFF file');
+            return false;
+        }
+        
+        // Check WEBP signature
+        const webpSig = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+        if (webpSig !== 'WEBP') {
+            debug.warn('Not a valid WebP file');
+            return false;
+        }
+        
+        // Look for animation indicators in the WebP chunks
+        // WebP animated images contain either:
+        // 1. "ANIM" chunk (VP8X with animation flag)
+        // 2. Multiple "ANMF" chunks (animation frames)
+        
+        let offset = 12; // Start after RIFF header
+        
+        while (offset < bytes.length - 8) {
+            // Read chunk fourCC
+            if (offset + 4 >= bytes.length) break;
+            
+            const chunkType = String.fromCharCode(
+                bytes[offset], 
+                bytes[offset + 1], 
+                bytes[offset + 2], 
+                bytes[offset + 3]
+            );
+            
+            debug.log('Found WebP chunk:', chunkType, 'at offset', offset);
+            
+            // Check for VP8X chunk (extended format)
+            if (chunkType === 'VP8X') {
+                // VP8X has flags at offset+8, animation flag is bit 1 (0x02)
+                if (offset + 8 < bytes.length) {
+                    const flags = bytes[offset + 8];
+                    const hasAnimation = (flags & 0x02) !== 0;
+                    debug.log('VP8X flags:', flags.toString(16), 'hasAnimation:', hasAnimation);
+                    return hasAnimation;
+                }
+            }
+            
+            // Check for ANIM chunk (animation parameters)
+            if (chunkType === 'ANIM') {
+                debug.log('Found ANIM chunk - WebP is animated');
+                return true;
+            }
+            
+            // Check for ANMF chunk (animation frame)
+            if (chunkType === 'ANMF') {
+                debug.log('Found ANMF chunk - WebP is animated');
+                return true;
+            }
+            
+            // Move to next chunk
+            if (offset + 7 >= bytes.length) break;
+            
+            // Read chunk size (little-endian)
+            const chunkSize = bytes[offset + 4] | 
+                            (bytes[offset + 5] << 8) | 
+                            (bytes[offset + 6] << 16) | 
+                            (bytes[offset + 7] << 24);
+            
+            // Move to next chunk (8 bytes header + chunk size, padded to even)
+            offset += 8 + Math.ceil(chunkSize / 2) * 2;
+            
+            // Safety check to prevent infinite loop
+            if (chunkSize === 0 || offset >= bytes.length) break;
+        }
+        
+        // If we didn't find animation indicators, it's likely a static WebP
+        debug.log('No animation chunks found - WebP appears to be static');
+        return false;
+        
+    } catch (error) {
+        debug.warn('Error checking WebP animation status:', error);
+        // Return null to indicate we couldn't determine the status
+        // This will cause the conversion to be skipped for safety
         return null;
     }
 }

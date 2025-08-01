@@ -26,6 +26,13 @@
     </div>
     
     <div class="test-image">
+        <h3>Test 2.5: Animated WebP (should NOT convert)</h3>
+        <img src="https://mathiasbynens.be/demo/animated-webp-supported.webp" alt="Animated WebP Test" />
+        <p>URL: https://mathiasbynens.be/demo/animated-webp-supported.webp</p>
+        <p><strong>Note:</strong> This is an animated WebP - conversion should be skipped to preserve animation</p>
+    </div>
+    
+    <div class="test-image">
         <h3>Test 3: Regular PNG image (should not convert)</h3>
         <img src="https://www.w3schools.com/css/img_lights.jpg" alt="Regular JPG Image" />
         <p>URL: https://www.w3schools.com/css/img_lights.jpg</p>
@@ -37,6 +44,74 @@
             const isWebP = url.toLowerCase().includes('.webp') || url.toLowerCase().includes('webp');
             console.log(`URL: ${url} - Is WebP: ${isWebP}`);
             return isWebP;
+        }
+        
+        // Test WebP animation detection (simplified version for demo)
+        async function testWebPAnimationDetection(url) {
+            try {
+                console.log('Testing animation detection for:', url);
+                
+                const response = await fetch(url, {
+                    headers: { 'Range': 'bytes=0-1024' }
+                });
+                
+                if (!response.ok) {
+                    console.log('  Failed to fetch:', response.status);
+                    return null;
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                
+                // Basic WebP validation
+                const riffSig = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+                const webpSig = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+                
+                if (riffSig !== 'RIFF' || webpSig !== 'WEBP') {
+                    console.log('  Not a valid WebP file');
+                    return false;
+                }
+                
+                // Look for animation chunks
+                let offset = 12;
+                let foundAnimation = false;
+                
+                while (offset < bytes.length - 8) {
+                    const chunkType = String.fromCharCode(
+                        bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]
+                    );
+                    
+                    console.log('  Found chunk:', chunkType);
+                    
+                    if (chunkType === 'VP8X') {
+                        const flags = bytes[offset + 8];
+                        const hasAnimation = (flags & 0x02) !== 0;
+                        console.log('  VP8X flags:', flags.toString(16), 'hasAnimation:', hasAnimation);
+                        foundAnimation = hasAnimation;
+                        break;
+                    }
+                    
+                    if (chunkType === 'ANIM' || chunkType === 'ANMF') {
+                        console.log('  Found animation chunk:', chunkType);
+                        foundAnimation = true;
+                        break;
+                    }
+                    
+                    // Move to next chunk
+                    const chunkSize = bytes[offset + 4] | (bytes[offset + 5] << 8) | 
+                                    (bytes[offset + 6] << 16) | (bytes[offset + 7] << 24);
+                    offset += 8 + Math.ceil(chunkSize / 2) * 2;
+                    
+                    if (chunkSize === 0 || offset >= bytes.length) break;
+                }
+                
+                console.log('  Animation detected:', foundAnimation);
+                return foundAnimation;
+                
+            } catch (error) {
+                console.log('  Error:', error);
+                return null;
+            }
         }
         
         // Test the detection logic
@@ -51,6 +126,22 @@
         
         console.log('WebP Detection Tests:');
         testUrls.forEach(testWebPDetection);
+        
+        // Test animation detection on the images in this page
+        window.addEventListener('load', async () => {
+            console.log('\nWebP Animation Detection Tests:');
+            
+            const webpImages = [
+                'https://developers.google.com/speed/webp/gallery/1.webp',
+                'https://developers.google.com/speed/webp/gallery/2.webp',
+                'https://mathiasbynens.be/demo/animated-webp-supported.webp'
+            ];
+            
+            for (const url of webpImages) {
+                await testWebPAnimationDetection(url);
+                console.log('---');
+            }
+        });
     </script>
 </body>
 </html>
