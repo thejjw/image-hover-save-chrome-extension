@@ -104,7 +104,7 @@ chrome.storage.sync.set({ 'ihs_convert_webp_to_png': false });
 - No modifications needed for basic functionality
 
 ## Testing
-Use the included `test-webp.html` file to test WebP detection and conversion functionality in a controlled environment.
+Use the included `test/webp-conversion-test.html` file to test WebP detection and conversion functionality in a controlled environment.
 
 ## Technical Details: WebP Animation Detection
 
