@@ -5,37 +5,101 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebP to PNG Conversion Test</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .test-image { margin: 20px 0; border: 1px solid #ccc; padding: 10px; }
-        img { max-width: 300px; height: auto; }
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .test-image { 
+            margin: 20px 0; 
+            border: 1px solid #ccc; 
+            padding: 15px; 
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .test-image h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #4285f4;
+            padding-bottom: 5px;
+        }
+        img { 
+            max-width: 300px; 
+            height: auto; 
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-image p {
+            margin: 8px 0;
+        }
+        .test-image em {
+            color: #666;
+            font-size: 0.9em;
+        }
+        button {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #3367d6;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .convert { background-color: #e8f5e8; color: #2d5a2d; }
+        .no-convert { background-color: #fff3cd; color: #856404; }
+        .animated { background-color: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
     <h1>WebP to PNG Conversion Test</h1>
     
     <div class="test-image">
-        <h3>Test 1: WebP image with .webp extension</h3>
-        <img src="https://developers.google.com/speed/webp/gallery/1.webp" alt="WebP Test Image 1" />
-        <p>URL: https://developers.google.com/speed/webp/gallery/1.webp</p>
+        <h3>Test 1: Static WebP image <span class="status-indicator convert">SHOULD CONVERT</span></h3>
+        <img src="https://upload.wikimedia.org/wikipedia/commons/a/ae/Wikipedia-logo-v2-webp.webp" alt="Wikipedia WebP Logo" />
+        <p>URL: https://upload.wikimedia.org/wikipedia/commons/a/ae/Wikipedia-logo-v2-webp.webp</p>
+        <p><em>Note: This is a static WebP from Wikipedia Commons</em></p>
     </div>
     
     <div class="test-image">
-        <h3>Test 2: WebP image with query parameters</h3>
-        <img src="https://developers.google.com/speed/webp/gallery/2.webp?format=webp" alt="WebP Test Image 2" />
-        <p>URL: https://developers.google.com/speed/webp/gallery/2.webp?format=webp</p>
+        <h3>Test 2: Another static WebP <span class="status-indicator convert">SHOULD CONVERT</span></h3>
+        <img src="https://i.imgur.com/szUBodG_d.webp?maxwidth=760&fidelity=grand" alt="WebP Test Image 2" />
+        <p>URL: https://i.imgur.com/szUBodG_d.webp?maxwidth=760&fidelity=grand</p>
+        <p><em>Note: This is a static WebP from Imgur's CDN</em></p>
     </div>
     
     <div class="test-image">
-        <h3>Test 2.5: Animated WebP (should NOT convert)</h3>
+        <h3>Test 3: Animated WebP <span class="status-indicator animated">SKIP CONVERSION</span></h3>
         <img src="https://mathiasbynens.be/demo/animated-webp-supported.webp" alt="Animated WebP Test" />
         <p>URL: https://mathiasbynens.be/demo/animated-webp-supported.webp</p>
         <p><strong>Note:</strong> This is an animated WebP - conversion should be skipped to preserve animation</p>
     </div>
     
     <div class="test-image">
-        <h3>Test 3: Regular PNG image (should not convert)</h3>
-        <img src="https://www.w3schools.com/css/img_lights.jpg" alt="Regular JPG Image" />
-        <p>URL: https://www.w3schools.com/css/img_lights.jpg</p>
+        <h3>Test 4: Regular JPG image <span class="status-indicator no-convert">NO CONVERSION</span></h3>
+        <img src="https://picsum.photos/300/200?random=1" alt="Regular JPG Image" />
+        <p>URL: https://picsum.photos/300/200?random=1</p>
+        <p><em>Note: This is a regular JPG image, should not trigger WebP conversion</em></p>
+    </div>
+    
+    <div class="test-image">
+        <h3>Test 5: WebP from Unsplash <span class="status-indicator convert">SHOULD CONVERT</span></h3>
+        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=200&fit=crop&auto=format&fm=webp&q=60" alt="Unsplash WebP Image" />
+        <p>URL: https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=200&fit=crop&auto=format&fm=webp&q=60</p>
+        <p><em>Note: This is a static WebP from Unsplash's CDN</em></p>
+    </div>
+    
+    <div class="test-image">
+        <h3>Backup Test: Create WebP data URL</h3>
+        <canvas id="testCanvas" width="100" height="100" style="border: 1px solid #ddd;"></canvas>
+        <p><em>Note: This creates a test WebP data URL if external sources fail</em></p>
+        <button onclick="createTestWebP()">Generate Test WebP</button>
     </div>
     
     <script>
@@ -127,13 +191,58 @@
         console.log('WebP Detection Tests:');
         testUrls.forEach(testWebPDetection);
         
+        // Function to create a test WebP data URL
+        function createTestWebP() {
+            const canvas = document.getElementById('testCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Draw a simple test pattern
+            ctx.fillStyle = '#4285f4';
+            ctx.fillRect(0, 0, 50, 50);
+            ctx.fillStyle = '#ea4335';
+            ctx.fillRect(50, 0, 50, 50);
+            ctx.fillStyle = '#fbbc04';
+            ctx.fillRect(0, 50, 50, 50);
+            ctx.fillStyle = '#34a853';
+            ctx.fillRect(50, 50, 50, 50);
+            
+            // Try to convert to WebP (if supported)
+            if (canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0) {
+                const webpDataUrl = canvas.toDataURL('image/webp', 0.8);
+                
+                // Create an img element with the WebP data URL
+                const img = document.createElement('img');
+                img.src = webpDataUrl;
+                img.alt = 'Generated WebP Test';
+                img.style.maxWidth = '100px';
+                img.style.border = '1px solid #ccc';
+                img.style.marginTop = '10px';
+                
+                const container = canvas.parentElement;
+                container.appendChild(img);
+                
+                console.log('Generated WebP data URL (first 100 chars):', webpDataUrl.substring(0, 100) + '...');
+                
+                // Test our detection on this data URL
+                testWebPDetection(webpDataUrl);
+            } else {
+                console.log('WebP encoding not supported in this browser');
+                const container = canvas.parentElement;
+                const msg = document.createElement('p');
+                msg.textContent = 'WebP encoding not supported in this browser';
+                msg.style.color = 'red';
+                container.appendChild(msg);
+            }
+        }
+        
         // Test animation detection on the images in this page
         window.addEventListener('load', async () => {
             console.log('\nWebP Animation Detection Tests:');
             
             const webpImages = [
-                'https://developers.google.com/speed/webp/gallery/1.webp',
-                'https://developers.google.com/speed/webp/gallery/2.webp',
+                'https://upload.wikimedia.org/wikipedia/commons/a/ae/Wikipedia-logo-v2-webp.webp',
+                'https://i.imgur.com/szUBodG_d.webp?maxwidth=760&fidelity=grand',
+                'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=200&fit=crop&auto=format&fm=webp&q=60',
                 'https://mathiasbynens.be/demo/animated-webp-supported.webp'
             ];
             
