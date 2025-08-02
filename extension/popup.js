@@ -6,7 +6,7 @@
 // - JSZip v3.10.1 (MIT) - Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
 
 // Extension version - update this when releasing new versions
-const EXTENSION_VERSION = '1.0.0';
+const EXTENSION_VERSION = '1.1.0';
 
 // Debug flag - set to false to disable all console output
 const DEBUG = false;
@@ -79,6 +79,7 @@ async function initializePopup() {
         const detectBackground = await storage.get('ihs_detect_background');
         const detectVideo = await storage.get('ihs_detect_video');
         const allowedExtensions = await storage.get('ihs_allowed_extensions');
+        const convertWebpToPng = await storage.get('ihs_convert_webp_to_png');
         
         // Set toggle state
         const enabledToggle = document.getElementById('enabledToggle');
@@ -112,6 +113,9 @@ async function initializePopup() {
         const minImageSize = await storage.get('ihs_min_image_size');
         const minImageSizeInput = document.getElementById('minImageSize');
         minImageSizeInput.value = minImageSize || CONFIG.MIN_IMAGE_SIZE;
+        
+        // Set WebP to PNG conversion option
+        document.getElementById('convertWebpToPng').checked = convertWebpToPng === true; // Default: false
         
         // Set up additional event listeners
         setupImageDetectionListeners();
@@ -329,6 +333,18 @@ function setupImageDetectionListeners() {
         }
     });
     
+    // WebP to PNG conversion checkbox
+    const convertWebpToPng = document.getElementById('convertWebpToPng');
+    convertWebpToPng.addEventListener('change', async (e) => {
+        const success = await storage.set('ihs_convert_webp_to_png', e.target.checked);
+        if (success) {
+            showStatus(e.target.checked ? 'WebP to PNG conversion enabled' : 'WebP to PNG conversion disabled');
+            await notifyContentScriptSettingsChanged();
+        } else {
+            showStatus('Failed to save WebP conversion setting', 'error');
+        }
+    });
+    
     // Reset button
     const resetBtn = document.getElementById('resetBtn');
     resetBtn.addEventListener('click', async () => {
@@ -346,12 +362,16 @@ async function getCurrentSettings() {
         const detectBackground = await storage.get('ihs_detect_background');
         const detectVideo = await storage.get('ihs_detect_video');
         const allowedExtensions = await storage.get('ihs_allowed_extensions');
+        const convertWebpToPng = await storage.get('ihs_convert_webp_to_png');
+        const minImageSize = await storage.get('ihs_min_image_size');
         
         return {
             detectImg: detectImg !== false, // Default: true
             detectSvg: detectSvg === true, // Default: false
             detectBackground: detectBackground === true, // Default: false
             detectVideo: detectVideo !== false, // Default: true
+            convertWebpToPng: convertWebpToPng === true, // Default: false
+            minImageSize: minImageSize || CONFIG.MIN_IMAGE_SIZE,
             allowedExtensions: (allowedExtensions || CONFIG.DEFAULT_EXTENSIONS_STRING)
                 .split(',')
                 .map(ext => ext.trim())
@@ -365,6 +385,8 @@ async function getCurrentSettings() {
             detectSvg: false, // Changed default
             detectBackground: false, // Changed default
             detectVideo: true,
+            convertWebpToPng: false, // Default: false
+            minImageSize: CONFIG.MIN_IMAGE_SIZE,
             allowedExtensions: CONFIG.DEFAULT_EXTENSIONS
         };
     }

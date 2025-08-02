@@ -31,6 +31,7 @@ let detectImg = true;
 let detectVideo = true;
 let detectSvg = false;
 let detectBackground = false;
+let convertWebpToPng = false;
 
 // Storage helper
 const storage = {
@@ -55,6 +56,7 @@ async function initializeExtension() {
         const videoDetect = await storage.get('ihs_detect_video');
         const svgDetect = await storage.get('ihs_detect_svg');
         const bgDetect = await storage.get('ihs_detect_background');
+        const webpToPngConvert = await storage.get('ihs_convert_webp_to_png');
         
         isEnabled = enabled !== false; // Default to true
         hoverDelay = delay || CONFIG.DEFAULT_HOVER_DELAY;
@@ -63,6 +65,7 @@ async function initializeExtension() {
         detectVideo = videoDetect !== false; // Default: true
         detectSvg = svgDetect === true; // Default: false
         detectBackground = bgDetect === true; // Default: false
+        convertWebpToPng = webpToPngConvert === true; // Default: false
         
         // Check domain exclusions
         await checkDomainExclusion();
@@ -77,7 +80,7 @@ async function initializeExtension() {
         
         debug.log('Extension initialized:', { 
             isEnabled, hoverDelay, minImageSize, isDomainExcluded,
-            detectImg, detectVideo, detectSvg, detectBackground 
+            detectImg, detectVideo, detectSvg, detectBackground, convertWebpToPng 
         });
     } catch (error) {
         debug.warn('Failed to load settings:', error);
@@ -180,6 +183,45 @@ function downloadElement(element) {
         // Send download request to background script
         chrome.storage.sync.get(['ihs_download_mode'], async (result) => {
             const downloadMode = result.ihs_download_mode || 'normal';
+            
+            // Check if we should convert WebP to PNG
+            let shouldConvertWebp = false;
+            if (convertWebpToPng && elementUrl && 
+                (elementUrl.toLowerCase().includes('.webp') || elementUrl.toLowerCase().includes('webp'))) {
+                shouldConvertWebp = true;
+                debug.log('WebP detected and conversion enabled, will convert to PNG');
+            }
+            
+            // Handle WebP to PNG conversion
+            if (shouldConvertWebp) {
+                try {
+                    const pngBlob = await convertWebpImageToPng(element);
+                    if (pngBlob) {
+                        // Send PNG blob data to background script
+                        const reader = new FileReader();
+                        reader.onload = function() {
+                            // Update filename to have .png extension
+                            let pngFilename = filename.replace(/\.(webp|WEBP)$/i, '.png');
+                            if (!pngFilename.endsWith('.png')) {
+                                pngFilename = pngFilename.replace(/\.[^.]+$/, '.png');
+                            }
+                            
+                            chrome.runtime.sendMessage({
+                                type: 'download_canvas_image',
+                                dataUrl: reader.result,
+                                filename: pngFilename,
+                                downloadMode: 'webp_conversion'
+                            });
+                        };
+                        reader.readAsDataURL(pngBlob);
+                        return;
+                    } else {
+                        debug.warn('WebP to PNG conversion failed, falling back to normal download');
+                    }
+                } catch (conversionError) {
+                    debug.warn('WebP to PNG conversion error, falling back to normal download:', conversionError);
+                }
+            }
             
             // Handle canvas extraction mode
             if (downloadMode === 'canvas') {
@@ -468,9 +510,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.settings.minImageSize !== undefined) {
                 minImageSize = message.settings.minImageSize;
             }
+            if (message.settings.convertWebpToPng !== undefined) {
+                convertWebpToPng = message.settings.convertWebpToPng;
+            }
             
             debug.log('Settings updated:', { 
-                detectImg, detectVideo, detectSvg, detectBackground, minImageSize 
+                detectImg, detectVideo, detectSvg, detectBackground, minImageSize, convertWebpToPng 
             });
             
             sendResponse({ success: true });
@@ -562,6 +607,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         if (changes.ihs_hover_delay) {
             hoverDelay = changes.ihs_hover_delay.newValue || CONFIG.DEFAULT_HOVER_DELAY;
             debug.log('Hover delay changed:', hoverDelay);
+        }
+        
+        if (changes.ihs_convert_webp_to_png) {
+            convertWebpToPng = changes.ihs_convert_webp_to_png.newValue === true;
+            debug.log('WebP to PNG conversion changed:', convertWebpToPng);
         }
         
         if (changes.ihs_domain_exclusions) {
@@ -679,6 +729,229 @@ async function extractImageToCanvas(element) {
         
     } catch (error) {
         debug.error('Canvas extraction error:', error);
+        return null;
+    }
+}
+
+// Convert WebP image to PNG using canvas
+async function convertWebpImageToPng(element) {
+    try {
+        debug.log('Attempting WebP to PNG conversion for element:', element.tagName);
+        
+        let sourceUrl = null;
+        
+        // Handle different element types
+        if (element.tagName === 'IMG') {
+            sourceUrl = element.src;
+        } else {
+            // For background images or other elements, try to extract the URL
+            const computedStyle = window.getComputedStyle(element);
+            const backgroundImage = computedStyle.backgroundImage;
+            
+            if (backgroundImage && backgroundImage !== 'none') {
+                const urlMatch = backgroundImage.match(/url\(["']?([^"')]+)["']?\)/);
+                if (urlMatch) {
+                    sourceUrl = urlMatch[1];
+                }
+            }
+        }
+        
+        if (!sourceUrl) {
+            debug.warn('No source URL found for WebP conversion');
+            return null;
+        }
+        
+        // Check if the image is WebP
+        if (!sourceUrl.toLowerCase().includes('.webp') && !sourceUrl.toLowerCase().includes('webp')) {
+            debug.log('Image is not WebP, skipping conversion');
+            return null;
+        }
+        
+        // Check if the WebP is animated before converting
+        const isAnimated = await isAnimatedWebP(sourceUrl);
+        if (isAnimated === true) {
+            debug.log('WebP is animated, skipping PNG conversion to preserve animation');
+            return null;
+        } else if (isAnimated === null) {
+            debug.warn('Could not determine if WebP is animated, skipping conversion for safety');
+            return null;
+        }
+        
+        debug.log('Converting static WebP to PNG, source URL:', sourceUrl);
+        
+        // Create a new image element to load the WebP
+        const img = new Image();
+        
+        // Set up cross-origin handling
+        img.crossOrigin = 'anonymous';
+        
+        return new Promise((resolve, reject) => {
+            img.onload = function() {
+                try {
+                    debug.log('WebP image loaded for conversion, dimensions:', img.naturalWidth, 'x', img.naturalHeight);
+                    
+                    // Create canvas
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Set canvas dimensions to match image
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    
+                    // Draw WebP image to canvas
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // Convert canvas to PNG blob
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            debug.log('WebP to PNG conversion successful, blob size:', blob.size);
+                            resolve(blob);
+                        } else {
+                            debug.warn('Failed to create PNG blob from WebP');
+                            resolve(null);
+                        }
+                    }, 'image/png', 1.0);
+                    
+                } catch (canvasError) {
+                    debug.error('WebP to PNG conversion error:', canvasError);
+                    resolve(null);
+                }
+            };
+            
+            img.onerror = function() {
+                debug.warn('Failed to load WebP image for conversion');
+                resolve(null);
+            };
+            
+            // Handle CORS errors gracefully
+            img.onabort = function() {
+                debug.warn('WebP image loading aborted for conversion');
+                resolve(null);
+            };
+            
+            // Start loading the WebP image
+            img.src = sourceUrl;
+            
+            // Set a timeout to avoid hanging
+            setTimeout(() => {
+                debug.warn('WebP to PNG conversion timeout');
+                resolve(null);
+            }, 10000);
+        });
+        
+    } catch (error) {
+        debug.error('WebP to PNG conversion error:', error);
+        return null;
+    }
+}
+
+// Check if a WebP image is animated by examining its file header
+async function isAnimatedWebP(url) {
+    try {
+        debug.log('Checking if WebP is animated:', url);
+        
+        // Fetch only the first few KB to check the header
+        const response = await fetch(url, {
+            headers: {
+                'Range': 'bytes=0-1024' // Only fetch first 1KB for header analysis
+            }
+        });
+        
+        if (!response.ok) {
+            debug.warn('Failed to fetch WebP for animation check:', response.status);
+            return null;
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        
+        // Check WebP signature first: "RIFF" + 4 bytes + "WEBP"
+        if (bytes.length < 12) {
+            debug.warn('WebP file too small for header analysis');
+            return null;
+        }
+        
+        // Check RIFF signature
+        const riffSig = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+        if (riffSig !== 'RIFF') {
+            debug.warn('Not a valid RIFF file');
+            return false;
+        }
+        
+        // Check WEBP signature
+        const webpSig = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+        if (webpSig !== 'WEBP') {
+            debug.warn('Not a valid WebP file');
+            return false;
+        }
+        
+        // Look for animation indicators in the WebP chunks
+        // WebP animated images contain either:
+        // 1. "ANIM" chunk (VP8X with animation flag)
+        // 2. Multiple "ANMF" chunks (animation frames)
+        
+        let offset = 12; // Start after RIFF header
+        
+        while (offset < bytes.length - 8) {
+            // Read chunk fourCC
+            if (offset + 4 >= bytes.length) break;
+            
+            const chunkType = String.fromCharCode(
+                bytes[offset], 
+                bytes[offset + 1], 
+                bytes[offset + 2], 
+                bytes[offset + 3]
+            );
+            
+            debug.log('Found WebP chunk:', chunkType, 'at offset', offset);
+            
+            // Check for VP8X chunk (extended format)
+            if (chunkType === 'VP8X') {
+                // VP8X has flags at offset+8, animation flag is bit 1 (0x02)
+                if (offset + 8 < bytes.length) {
+                    const flags = bytes[offset + 8];
+                    const hasAnimation = (flags & 0x02) !== 0;
+                    debug.log('VP8X flags:', flags.toString(16), 'hasAnimation:', hasAnimation);
+                    return hasAnimation;
+                }
+            }
+            
+            // Check for ANIM chunk (animation parameters)
+            if (chunkType === 'ANIM') {
+                debug.log('Found ANIM chunk - WebP is animated');
+                return true;
+            }
+            
+            // Check for ANMF chunk (animation frame)
+            if (chunkType === 'ANMF') {
+                debug.log('Found ANMF chunk - WebP is animated');
+                return true;
+            }
+            
+            // Move to next chunk
+            if (offset + 7 >= bytes.length) break;
+            
+            // Read chunk size (little-endian)
+            const chunkSize = bytes[offset + 4] | 
+                            (bytes[offset + 5] << 8) | 
+                            (bytes[offset + 6] << 16) | 
+                            (bytes[offset + 7] << 24);
+            
+            // Move to next chunk (8 bytes header + chunk size, padded to even)
+            offset += 8 + Math.ceil(chunkSize / 2) * 2;
+            
+            // Safety check to prevent infinite loop
+            if (chunkSize === 0 || offset >= bytes.length) break;
+        }
+        
+        // If we didn't find animation indicators, it's likely a static WebP
+        debug.log('No animation chunks found - WebP appears to be static');
+        return false;
+        
+    } catch (error) {
+        debug.warn('Error checking WebP animation status:', error);
+        // Return null to indicate we couldn't determine the status
+        // This will cause the conversion to be skipped for safety
         return null;
     }
 }
