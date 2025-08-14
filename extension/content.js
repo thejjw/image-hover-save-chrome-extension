@@ -544,11 +544,13 @@ function handleMouseEnter(e) {
     } else if (element.tagName === 'svg' && detectSvg) {
         isValidType = true;
     } else if (detectBackground) {
-        // Check for background images
-        const computedStyle = window.getComputedStyle(element);
-        const bgImage = computedStyle.backgroundImage;
-        if (bgImage && bgImage !== 'none' && bgImage.includes('url(')) {
-            isValidType = true;
+        // Check for background images - ensure element is an Element node
+        if (element instanceof Element) {
+            const computedStyle = window.getComputedStyle(element);
+            const bgImage = computedStyle.backgroundImage;
+            if (bgImage && bgImage !== 'none' && bgImage.includes('url(')) {
+                isValidType = true;
+            }
         }
     }
     
