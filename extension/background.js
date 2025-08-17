@@ -47,6 +47,14 @@ chrome.runtime.onInstalled.addListener(() => {
     // Set initial badge state
     updateBadge(false, false);
     
+    // Create context menu item for links
+    chrome.contextMenus.create({
+        id: "ihs-download-link",
+        title: "Download Link",
+        contexts: ["link"],
+        documentUrlPatterns: ["http://*/*", "https://*/*"]
+    });
+    
     debug.log('Extension installed, default settings applied');
 });
 
@@ -80,6 +88,13 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (changes.ihs_domain_exclusions && areaName === 'sync') {
         debug.log('Domain exclusions changed, content scripts will update automatically');
         // Content scripts will detect the storage change automatically
+    }
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === "ihs-download-link") {
+        downloadLinkDirectly(info.linkUrl);
     }
 });
 
@@ -210,4 +225,55 @@ async function getImageFromCache(url) {
     }
     
     return null;
+}
+
+// Download link directly to default directory
+async function downloadLinkDirectly(url) {
+    try {
+        debug.log('Downloading link directly:', url);
+        
+        // Generate filename from URL
+        let filename;
+        try {
+            const urlObj = new URL(url);
+            filename = urlObj.pathname.split('/').pop();
+            
+            // Throw error if no filename from URL to use fallback logic
+            if (!filename || filename === '') {
+                throw new Error('No filename found in URL');
+            }
+        } catch (error) {
+            debug.warn('Using fallback filename:', error.message);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            filename = `download-${timestamp}-file`;
+        }
+        
+        // Clean filename - remove problematic characters and limit length
+        let cleanFilename = filename.replace(/[<>:"/\\|?*]/g, '_');
+        
+        // Limit filename to 100 characters (conservative limit for most filesystems)
+        if (cleanFilename.length > 100) {
+            const ext = cleanFilename.lastIndexOf('.');
+            if (ext > 0 && ext > cleanFilename.length - 10) {
+                // Keep extension if it exists and is reasonable
+                const extension = cleanFilename.substring(ext);
+                const basename = cleanFilename.substring(0, ext);
+                cleanFilename = basename.substring(0, 100 - extension.length) + extension;
+            } else {
+                cleanFilename = cleanFilename.substring(0, 100);
+            }
+        }
+        
+        // Download using Chrome downloads API
+        const downloadId = await chrome.downloads.download({
+            url: url,
+            filename: cleanFilename,
+            saveAs: false // Don't prompt for save location, use default directory
+        });
+        
+        debug.log('Link download started with ID:', downloadId);
+        
+    } catch (error) {
+        debug.error('Error downloading link:', error);
+    }
 }
