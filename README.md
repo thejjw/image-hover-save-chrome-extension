@@ -38,6 +38,7 @@ _(Note: The Chrome Web Store version may not always have the latest updates.)_
 - `tabs`: Required for cross-tab preference communication and badge indicators
 - `activeTab`: Required to interact with the current webpage
 - `<all_urls>`: Required to work on all websites
+- `contextMenus`: Required to add a link-only right-click menu entry
 
 ## Privacy
 
