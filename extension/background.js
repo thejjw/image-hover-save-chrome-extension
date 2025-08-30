@@ -55,6 +55,22 @@ chrome.runtime.onInstalled.addListener(() => {
         documentUrlPatterns: ["http://*/*", "https://*/*"]
     });
     
+    // Create context menu item for videos
+    chrome.contextMenus.create({
+        id: "ihs-download-video",
+        title: "Download Video",
+        contexts: ["video"],
+        documentUrlPatterns: ["http://*/*", "https://*/*"]
+    });
+    
+    // Create context menu item for images
+    chrome.contextMenus.create({
+        id: "ihs-download-image",
+        title: "Download Image",
+        contexts: ["image"],
+        documentUrlPatterns: ["http://*/*", "https://*/*"]
+    });
+    
     debug.log('Extension installed, default settings applied');
 });
 
@@ -95,6 +111,10 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === "ihs-download-link") {
         downloadLinkDirectly(info.linkUrl);
+    } else if (info.menuItemId === "ihs-download-video") {
+        downloadVideoDirectly(info.srcUrl, tab);
+    } else if (info.menuItemId === "ihs-download-image") {
+        downloadImageDirectly(info.srcUrl, tab);
     }
 });
 
@@ -227,42 +247,56 @@ async function getImageFromCache(url) {
     return null;
 }
 
+// Shared function to generate and clean filenames
+function generateCleanFilename(url, fallbackPrefix = 'download', fallbackExtension = '') {
+    let filename;
+    
+    // Clean up URL - remove fragment identifiers like #t=0.01
+    let cleanUrl = url;
+    if (cleanUrl.includes('#')) {
+        cleanUrl = cleanUrl.split('#')[0];
+    }
+    
+    try {
+        const urlObj = new URL(cleanUrl);
+        filename = urlObj.pathname.split('/').pop();
+        
+        // Throw error if no filename from URL to use fallback logic
+        if (!filename || filename === '') {
+            throw new Error('No filename found in URL');
+        }
+    } catch (error) {
+        debug.warn(`Using fallback filename for ${fallbackPrefix}:`, error.message);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        filename = `${fallbackPrefix}-${timestamp}${fallbackExtension}`;
+    }
+    
+    // Clean filename - remove problematic characters and limit length
+    let cleanFilename = filename.replace(/[<>:"/\\|?*]/g, '_');
+    
+    // Limit filename to 100 characters (conservative limit for most filesystems)
+    if (cleanFilename.length > 100) {
+        const ext = cleanFilename.lastIndexOf('.');
+        if (ext > 0 && ext > cleanFilename.length - 10) {
+            // Keep extension if it exists and is reasonable
+            const extension = cleanFilename.substring(ext);
+            const basename = cleanFilename.substring(0, ext);
+            cleanFilename = basename.substring(0, 100 - extension.length) + extension;
+        } else {
+            cleanFilename = cleanFilename.substring(0, 100);
+        }
+    }
+    
+    return cleanFilename;
+}
+
 // Download link directly to default directory
 async function downloadLinkDirectly(url) {
     try {
         debug.log('Downloading link directly:', url);
         
-        // Generate filename from URL
-        let filename;
-        try {
-            const urlObj = new URL(url);
-            filename = urlObj.pathname.split('/').pop();
-            
-            // Throw error if no filename from URL to use fallback logic
-            if (!filename || filename === '') {
-                throw new Error('No filename found in URL');
-            }
-        } catch (error) {
-            debug.warn('Using fallback filename:', error.message);
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            filename = `download-${timestamp}-file`;
-        }
-        
-        // Clean filename - remove problematic characters and limit length
-        let cleanFilename = filename.replace(/[<>:"/\\|?*]/g, '_');
-        
-        // Limit filename to 100 characters (conservative limit for most filesystems)
-        if (cleanFilename.length > 100) {
-            const ext = cleanFilename.lastIndexOf('.');
-            if (ext > 0 && ext > cleanFilename.length - 10) {
-                // Keep extension if it exists and is reasonable
-                const extension = cleanFilename.substring(ext);
-                const basename = cleanFilename.substring(0, ext);
-                cleanFilename = basename.substring(0, 100 - extension.length) + extension;
-            } else {
-                cleanFilename = cleanFilename.substring(0, 100);
-            }
-        }
+        // Generate clean filename using shared function
+        const cleanFilename = generateCleanFilename(url, 'download', '-file');
         
         // Download using Chrome downloads API
         const downloadId = await chrome.downloads.download({
@@ -275,5 +309,107 @@ async function downloadLinkDirectly(url) {
         
     } catch (error) {
         debug.error('Error downloading link:', error);
+    }
+}
+
+// Download video directly to default directory
+async function downloadVideoDirectly(videoUrl, tab) {
+    try {
+        debug.log('Downloading video directly:', videoUrl);
+        
+        // Generate clean filename using shared function
+        let cleanFilename = generateCleanFilename(videoUrl, 'video', '.mp4');
+        
+        // Ensure it has a video extension if none present
+        const videoExtensions = ['.mp4', '.webm', '.ogg', '.avi', '.mov', '.wmv', '.flv', '.mkv'];
+        const hasVideoExtension = videoExtensions.some(ext => 
+            cleanFilename.toLowerCase().endsWith(ext.toLowerCase())
+        );
+        
+        if (!hasVideoExtension) {
+            // Try to detect extension from URL or default to .mp4
+            const urlLower = videoUrl.toLowerCase();
+            const detectedExt = videoExtensions.find(ext => urlLower.includes(ext.toLowerCase()));
+            cleanFilename += detectedExt || '.maybe.mp4';
+        }
+        
+        // Clean up URL - remove fragment identifiers like #t=0.01
+        let cleanUrl = videoUrl;
+        if (cleanUrl.includes('#')) {
+            cleanUrl = cleanUrl.split('#')[0];
+        }
+        
+        // Download using Chrome downloads API
+        const downloadId = await chrome.downloads.download({
+            url: cleanUrl,
+            filename: cleanFilename,
+            saveAs: false // Don't prompt for save location, use default directory
+        });
+        
+        debug.log('Video download started with ID:', downloadId, 'Filename:', cleanFilename);
+        
+    } catch (error) {
+        debug.error('Error downloading video:', error);
+        
+        // Fallback: try to download without custom filename
+        try {
+            await chrome.downloads.download({
+                url: videoUrl,
+                saveAs: false
+            });
+        } catch (fallbackError) {
+            debug.error('Fallback video download also failed:', fallbackError);
+        }
+    }
+}
+
+// Download image directly to default directory
+async function downloadImageDirectly(imageUrl, tab) {
+    try {
+        debug.log('Downloading image directly:', imageUrl);
+        
+        // Generate clean filename using shared function
+        let cleanFilename = generateCleanFilename(imageUrl, 'image', '.jpg');
+        
+        // Ensure it has an image extension if none present
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff', '.ico'];
+        const hasImageExtension = imageExtensions.some(ext => 
+            cleanFilename.toLowerCase().endsWith(ext.toLowerCase())
+        );
+        
+        if (!hasImageExtension) {
+            // Try to detect extension from URL or default to .jpg
+            const urlLower = imageUrl.toLowerCase();
+            const detectedExt = imageExtensions.find(ext => urlLower.includes(ext.toLowerCase()));
+            cleanFilename += detectedExt || '.maybe.jpg';
+        }
+        
+        // Clean up URL - remove fragment identifiers
+        let cleanUrl = imageUrl;
+        if (cleanUrl.includes('#')) {
+            cleanUrl = cleanUrl.split('#')[0];
+        }
+        
+        // Download using Chrome downloads API
+        const downloadId = await chrome.downloads.download({
+            url: cleanUrl,
+            filename: cleanFilename,
+            saveAs: false // Don't prompt for save location, use default directory
+        });
+        
+        debug.log('Image download started with ID:', downloadId, 'Filename:', cleanFilename);
+        
+    } catch (error) {
+        debug.error('Error downloading image:', error);
+        
+        // Fallback: try to download without custom filename
+        try {
+            await chrome.downloads.download({
+                url: imageUrl,
+                saveAs: false
+            });
+        } catch (fallbackError) {
+            debug.error('Fallback image download also failed:', fallbackError);
+        }
     }
 }
