@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: zlib-acknowledgement
 
 // Extension version - should match popup.js
-const EXTENSION_VERSION = '1.1.0';
+const EXTENSION_VERSION = '1.3.0';
 
 // Debug flag
 const DEBUG = false;
