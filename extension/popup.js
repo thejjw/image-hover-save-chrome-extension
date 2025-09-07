@@ -6,7 +6,7 @@
 // - JSZip v3.10.1 (MIT) - Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
 
 // Extension version - update this when releasing new versions
-const EXTENSION_VERSION = '1.1.0';
+const EXTENSION_VERSION = '1.3.0';
 
 // Debug flag - set to false to disable all console output
 const DEBUG = false;
