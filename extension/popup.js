@@ -6,7 +6,7 @@
 // - JSZip v3.10.1 (MIT) - Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
 
 // Extension version - update this when releasing new versions
-const EXTENSION_VERSION = '1.3.0';
+const EXTENSION_VERSION = '1.4.0';
 
 // Debug flag - set to false to disable all console output
 const DEBUG = false;
@@ -24,7 +24,8 @@ const CONFIG = {
     DEFAULT_EXTENSIONS: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'mp4', 'webm', 'mov'],
     DEFAULT_EXTENSIONS_STRING: 'jpg,jpeg,png,gif,webp,svg,bmp,mp4,webm,mov',
     DEFAULT_HOVER_DELAY: 1500,
-    MIN_IMAGE_SIZE: 100
+    MIN_IMAGE_SIZE: 100,
+    DEFAULT_SHOW_BORDER: false
 };
 
 // Storage helper
@@ -80,6 +81,7 @@ async function initializePopup() {
         const detectVideo = await storage.get('ihs_detect_video');
         const allowedExtensions = await storage.get('ihs_allowed_extensions');
         const convertWebpToPng = await storage.get('ihs_convert_webp_to_png');
+        const showBorderHighlight = await storage.get('ihs_show_border_highlight');
         
         // Set toggle state
         const enabledToggle = document.getElementById('enabledToggle');
@@ -96,6 +98,9 @@ async function initializePopup() {
         document.getElementById('detectSvg').checked = detectSvg === true; // Disabled by default
         document.getElementById('detectBackground').checked = detectBackground === true; // Disabled by default
         document.getElementById('detectVideo').checked = detectVideo !== false;
+        
+        // Set border highlighting option
+        document.getElementById('showBorderHighlight').checked = showBorderHighlight === true; // Disabled by default
         
         // Set experimental download mode
         const downloadMode = await storage.get('ihs_download_mode') || 'normal';
@@ -224,6 +229,28 @@ function setupEventListeners() {
         chrome.tabs.create({
             url: chrome.runtime.getURL('exclusions.html')
         });
+    });
+    
+    // Advanced options toggle
+    const advancedToggle = document.getElementById('advancedToggle');
+    const advancedOptions = document.getElementById('advancedOptions');
+    
+    advancedToggle.addEventListener('click', () => {
+        advancedOptions.classList.toggle('collapsed');
+        advancedToggle.classList.toggle('expanded');
+    });
+    
+    // Border highlighting option
+    const showBorderHighlight = document.getElementById('showBorderHighlight');
+    showBorderHighlight.addEventListener('change', async (e) => {
+        const success = await storage.set('ihs_show_border_highlight', e.target.checked);
+        if (success) {
+            showStatus('Border highlight ' + (e.target.checked ? 'enabled' : 'disabled'));
+            await notifyContentScriptSettingsChanged();
+        } else {
+            showStatus('Failed to save border highlight setting', 'error');
+            e.target.checked = !e.target.checked; // Revert
+        }
     });
 }
 
@@ -364,6 +391,7 @@ async function getCurrentSettings() {
         const allowedExtensions = await storage.get('ihs_allowed_extensions');
         const convertWebpToPng = await storage.get('ihs_convert_webp_to_png');
         const minImageSize = await storage.get('ihs_min_image_size');
+        const showBorderHighlight = await storage.get('ihs_show_border_highlight');
         
         return {
             detectImg: detectImg !== false, // Default: true
@@ -371,6 +399,7 @@ async function getCurrentSettings() {
             detectBackground: detectBackground === true, // Default: false
             detectVideo: detectVideo !== false, // Default: true
             convertWebpToPng: convertWebpToPng === true, // Default: false
+            showBorderHighlight: showBorderHighlight === true, // Default: false
             minImageSize: minImageSize || CONFIG.MIN_IMAGE_SIZE,
             allowedExtensions: (allowedExtensions || CONFIG.DEFAULT_EXTENSIONS_STRING)
                 .split(',')
