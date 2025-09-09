@@ -640,16 +640,15 @@ function handleMouseEnter(e) {
         return;
     }
     
-    // Add border highlight
-    toggleBorderHighlight(element, true);
-    
     // Clear any existing timer
     if (hoverTimer) {
         clearTimeout(hoverTimer);
     }
     
-    // Set new timer
+    // Set new timer for both border highlight and download button
     hoverTimer = setTimeout(() => {
+        // Add border highlight and show download button together
+        toggleBorderHighlight(element, true);
         showDownloadButton(element);
     }, hoverDelay);
 }
