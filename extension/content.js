@@ -17,7 +17,11 @@ const debug = {
 const CONFIG = {
     DEFAULT_EXTENSIONS: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'mp4', 'webm', 'mov'],
     DEFAULT_HOVER_DELAY: 1500,
-    MIN_IMAGE_SIZE: 100
+    MIN_IMAGE_SIZE: 100,
+    DEFAULT_SHOW_BORDER: false,
+    BORDER_COLOR: '#00ff00',
+    BORDER_WIDTH: '2px',
+    BORDER_STYLE: 'solid'
 };
 
 let hoverTimer = null;
@@ -28,6 +32,7 @@ let hoverDelay = CONFIG.DEFAULT_HOVER_DELAY; // 1.5 seconds default
 let isDomainExcluded = false;
 let minImageSize = CONFIG.MIN_IMAGE_SIZE;
 let detectImg = true;
+let showBorderHighlight = CONFIG.DEFAULT_SHOW_BORDER;
 let detectVideo = true;
 let detectSvg = false;
 let detectBackground = false;
@@ -46,6 +51,36 @@ const storage = {
     }
 };
 
+// CSS class for border highlighting
+const BORDER_CSS = `
+.ihs-border-highlight {
+    outline: ${CONFIG.BORDER_WIDTH} ${CONFIG.BORDER_STYLE} ${CONFIG.BORDER_COLOR} !important;
+    outline-offset: 1px !important;
+    transition: outline 0.2s ease !important;
+}
+`;
+
+// Inject border CSS
+function injectBorderCSS() {
+    if (!document.getElementById('ihs-border-styles')) {
+        const style = document.createElement('style');
+        style.id = 'ihs-border-styles';
+        style.textContent = BORDER_CSS;
+        document.head.appendChild(style);
+    }
+}
+
+// Add/remove border highlight
+function toggleBorderHighlight(element, show) {
+    if (!showBorderHighlight) return;
+    
+    if (show) {
+        element.classList.add('ihs-border-highlight');
+    } else {
+        element.classList.remove('ihs-border-highlight');
+    }
+}
+
 // Initialize extension settings
 async function initializeExtension() {
     try {
@@ -57,18 +92,25 @@ async function initializeExtension() {
         const svgDetect = await storage.get('ihs_detect_svg');
         const bgDetect = await storage.get('ihs_detect_background');
         const webpToPngConvert = await storage.get('ihs_convert_webp_to_png');
+        const borderHighlight = await storage.get('ihs_show_border_highlight');
         
         isEnabled = enabled !== false; // Default to true
         hoverDelay = delay || CONFIG.DEFAULT_HOVER_DELAY;
         minImageSize = minSize || CONFIG.MIN_IMAGE_SIZE;
         detectImg = imgDetect !== false; // Default: true
         detectVideo = videoDetect !== false; // Default: true
+        showBorderHighlight = borderHighlight || CONFIG.DEFAULT_SHOW_BORDER;
         detectSvg = svgDetect === true; // Default: false
         detectBackground = bgDetect === true; // Default: false
         convertWebpToPng = webpToPngConvert === true; // Default: false
         
         // Check domain exclusions
         await checkDomainExclusion();
+        
+        // Inject border CSS if needed
+        if (showBorderHighlight) {
+            injectBorderCSS();
+        }
         
         // Send initial domain status to background script
         chrome.runtime.sendMessage({
@@ -513,9 +555,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.settings.convertWebpToPng !== undefined) {
                 convertWebpToPng = message.settings.convertWebpToPng;
             }
+            if (message.settings.showBorderHighlight !== undefined) {
+                showBorderHighlight = message.settings.showBorderHighlight;
+                
+                // Inject or remove border CSS
+                if (showBorderHighlight) {
+                    injectBorderCSS();
+                } else {
+                    // Remove all existing border highlights
+                    document.querySelectorAll('.ihs-border-highlight').forEach(el => {
+                        el.classList.remove('ihs-border-highlight');
+                    });
+                }
+            }
             
             debug.log('Settings updated:', { 
-                detectImg, detectVideo, detectSvg, detectBackground, minImageSize, convertWebpToPng 
+                detectImg, detectVideo, detectSvg, detectBackground, minImageSize, convertWebpToPng, showBorderHighlight 
             });
             
             sendResponse({ success: true });
@@ -558,6 +613,9 @@ function handleMouseEnter(e) {
         return;
     }
     
+    // Add border highlight
+    toggleBorderHighlight(element, true);
+    
     // Clear any existing timer
     if (hoverTimer) {
         clearTimeout(hoverTimer);
@@ -570,6 +628,11 @@ function handleMouseEnter(e) {
 }
 
 function handleMouseLeave(e) {
+    const element = e.target;
+    
+    // Remove border highlight
+    toggleBorderHighlight(element, false);
+    
     // Clear timer if mouse leaves before delay
     if (hoverTimer) {
         clearTimeout(hoverTimer);
