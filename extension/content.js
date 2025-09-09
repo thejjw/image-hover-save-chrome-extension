@@ -88,8 +88,12 @@ function injectBorderCSS() {
 function toggleBorderHighlight(element, show) {
     if (borderHighlightMode === 'off') return;
     
+    // Check if element exists and has classList
+    if (!element || !element.classList) return;
+    
     // Remove any existing border classes
-    element.classList.remove('ihs-border-highlight-gray', 'ihs-border-highlight-green');
+    const classesToRemove = Array.from(element.classList).filter(cls => cls.startsWith('ihs-border-highlight-'));
+    element.classList.remove(...classesToRemove);
     
     if (show) {
         if (borderHighlightMode === 'gray') {
@@ -581,9 +585,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 if (borderHighlightMode !== 'off') {
                     injectBorderCSS();
                 } else {
-                    // Remove all existing border highlights
-                    document.querySelectorAll('.ihs-border-highlight-gray, .ihs-border-highlight-green').forEach(el => {
-                        el.classList.remove('ihs-border-highlight-gray', 'ihs-border-highlight-green');
+                    // Remove all existing border highlights with proper checks
+                    document.querySelectorAll('[class*="ihs-border-highlight-"]').forEach(el => {
+                        if (el && el.classList) {
+                            // Remove all classes that start with 'ihs-border-highlight-'
+                            const classesToRemove = Array.from(el.classList).filter(cls => cls.startsWith('ihs-border-highlight-'));
+                            el.classList.remove(...classesToRemove);
+                        }
                     });
                 }
             }
