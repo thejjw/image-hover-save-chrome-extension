@@ -9,8 +9,6 @@ A Chrome extension that allows you to quickly save images by hovering over them 
 - **Smart filtering**: Only shows download button for images larger than predefined dimensions
 - **No save dialog**: Downloads directly to your default downloads folder
 - **Enable/disable**: Toggle the extension on/off from the popup
-- **Badge indicators**: Real-time status badges on extension icon
-- **Bulk download**: ZIP download for all images on a page
 - **Visual feedback**: Optional green border highlighting around targetable images (advanced option)
 - and more..
 
