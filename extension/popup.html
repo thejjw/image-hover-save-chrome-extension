@@ -46,22 +46,6 @@
             </div>
 
             <div class="setting-group">
-                <div class="advanced-section">
-                    <button type="button" id="advancedToggle" class="advanced-toggle">
-                        ⚙️ Advanced Options
-                        <span class="toggle-arrow">▼</span>
-                    </button>
-                    <div id="advancedOptions" class="advanced-options collapsed">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="showBorderHighlight">
-                            <span>Show border around images</span>
-                        </label>
-                        <p class="help-text">Adds a visible green border around images when hovering (helps identify targetable images)</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="setting-group">
                 <div class="download-mode-header">
                     <span class="download-mode-indicator" id="downloadModeIndicator">Download mode: <strong>Normal</strong></span>
                     <button type="button" class="expand-button" id="expandDownloadModes">⚙️ Advanced</button>
@@ -97,6 +81,23 @@
                             </label>
                         </div>
                         <p class="help-text">Advanced detection modes (disabled by default)</p>
+                        
+                        <label>Visual feedback:</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="borderHighlight" id="borderHighlightOff" value="off" checked>
+                                <span>No border highlighting</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="borderHighlight" id="borderHighlightGray" value="gray">
+                                <span>Subtle gray border</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="borderHighlight" id="borderHighlightGreen" value="green">
+                                <span>Bright green border</span>
+                            </label>
+                        </div>
+                        <p class="help-text">Show border around images when hovering (helps identify targetable images)</p>
                     </div>
                     
                     <div class="settings-group">
