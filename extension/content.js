@@ -18,8 +18,12 @@ const CONFIG = {
     DEFAULT_EXTENSIONS: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'mp4', 'webm', 'mov'],
     DEFAULT_HOVER_DELAY: 1500,
     MIN_IMAGE_SIZE: 100,
-    DEFAULT_SHOW_BORDER: false,
-    BORDER_COLOR: '#00ff00',
+    DEFAULT_BORDER_HIGHLIGHT: 'off',
+    BORDER_COLORS: {
+        off: 'none',
+        gray: '#888888',
+        green: '#00ff00'
+    },
     BORDER_WIDTH: '2px',
     BORDER_STYLE: 'solid'
 };
@@ -32,7 +36,7 @@ let hoverDelay = CONFIG.DEFAULT_HOVER_DELAY; // 1.5 seconds default
 let isDomainExcluded = false;
 let minImageSize = CONFIG.MIN_IMAGE_SIZE;
 let detectImg = true;
-let showBorderHighlight = CONFIG.DEFAULT_SHOW_BORDER;
+let borderHighlightMode = CONFIG.DEFAULT_BORDER_HIGHLIGHT;
 let detectVideo = true;
 let detectSvg = false;
 let detectBackground = false;
@@ -51,33 +55,48 @@ const storage = {
     }
 };
 
-// CSS class for border highlighting
-const BORDER_CSS = `
-.ihs-border-highlight {
-    outline: ${CONFIG.BORDER_WIDTH} ${CONFIG.BORDER_STYLE} ${CONFIG.BORDER_COLOR} !important;
+// Generate CSS for border highlighting
+function generateBorderCSS() {
+    const grayColor = CONFIG.BORDER_COLORS.gray;
+    const greenColor = CONFIG.BORDER_COLORS.green;
+    
+    return `
+.ihs-border-highlight-gray {
+    outline: ${CONFIG.BORDER_WIDTH} ${CONFIG.BORDER_STYLE} ${grayColor} !important;
+    outline-offset: 1px !important;
+    transition: outline 0.2s ease !important;
+}
+.ihs-border-highlight-green {
+    outline: ${CONFIG.BORDER_WIDTH} ${CONFIG.BORDER_STYLE} ${greenColor} !important;
     outline-offset: 1px !important;
     transition: outline 0.2s ease !important;
 }
 `;
+}
 
 // Inject border CSS
 function injectBorderCSS() {
     if (!document.getElementById('ihs-border-styles')) {
         const style = document.createElement('style');
         style.id = 'ihs-border-styles';
-        style.textContent = BORDER_CSS;
+        style.textContent = generateBorderCSS();
         document.head.appendChild(style);
     }
 }
 
 // Add/remove border highlight
 function toggleBorderHighlight(element, show) {
-    if (!showBorderHighlight) return;
+    if (borderHighlightMode === 'off') return;
+    
+    // Remove any existing border classes
+    element.classList.remove('ihs-border-highlight-gray', 'ihs-border-highlight-green');
     
     if (show) {
-        element.classList.add('ihs-border-highlight');
-    } else {
-        element.classList.remove('ihs-border-highlight');
+        if (borderHighlightMode === 'gray') {
+            element.classList.add('ihs-border-highlight-gray');
+        } else if (borderHighlightMode === 'green') {
+            element.classList.add('ihs-border-highlight-green');
+        }
     }
 }
 
@@ -92,14 +111,14 @@ async function initializeExtension() {
         const svgDetect = await storage.get('ihs_detect_svg');
         const bgDetect = await storage.get('ihs_detect_background');
         const webpToPngConvert = await storage.get('ihs_convert_webp_to_png');
-        const borderHighlight = await storage.get('ihs_show_border_highlight');
+        const borderHighlight = await storage.get('ihs_border_highlight_mode');
         
         isEnabled = enabled !== false; // Default to true
         hoverDelay = delay || CONFIG.DEFAULT_HOVER_DELAY;
         minImageSize = minSize || CONFIG.MIN_IMAGE_SIZE;
         detectImg = imgDetect !== false; // Default: true
         detectVideo = videoDetect !== false; // Default: true
-        showBorderHighlight = borderHighlight || CONFIG.DEFAULT_SHOW_BORDER;
+        borderHighlightMode = borderHighlight || CONFIG.DEFAULT_BORDER_HIGHLIGHT;
         detectSvg = svgDetect === true; // Default: false
         detectBackground = bgDetect === true; // Default: false
         convertWebpToPng = webpToPngConvert === true; // Default: false
@@ -108,7 +127,7 @@ async function initializeExtension() {
         await checkDomainExclusion();
         
         // Inject border CSS if needed
-        if (showBorderHighlight) {
+        if (borderHighlightMode !== 'off') {
             injectBorderCSS();
         }
         
@@ -555,22 +574,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.settings.convertWebpToPng !== undefined) {
                 convertWebpToPng = message.settings.convertWebpToPng;
             }
-            if (message.settings.showBorderHighlight !== undefined) {
-                showBorderHighlight = message.settings.showBorderHighlight;
+            if (message.settings.borderHighlightMode !== undefined) {
+                borderHighlightMode = message.settings.borderHighlightMode;
                 
                 // Inject or remove border CSS
-                if (showBorderHighlight) {
+                if (borderHighlightMode !== 'off') {
                     injectBorderCSS();
                 } else {
                     // Remove all existing border highlights
-                    document.querySelectorAll('.ihs-border-highlight').forEach(el => {
-                        el.classList.remove('ihs-border-highlight');
+                    document.querySelectorAll('.ihs-border-highlight-gray, .ihs-border-highlight-green').forEach(el => {
+                        el.classList.remove('ihs-border-highlight-gray', 'ihs-border-highlight-green');
                     });
                 }
             }
             
             debug.log('Settings updated:', { 
-                detectImg, detectVideo, detectSvg, detectBackground, minImageSize, convertWebpToPng, showBorderHighlight 
+                detectImg, detectVideo, detectSvg, detectBackground, minImageSize, convertWebpToPng, borderHighlightMode 
             });
             
             sendResponse({ success: true });

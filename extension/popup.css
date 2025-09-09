@@ -408,62 +408,6 @@ input[type="number"]:focus {
     border-color: #667eea;
 }
 
-/* Advanced Options Section */
-.advanced-section {
-    border-top: 1px solid #eee;
-    padding-top: 15px;
-}
-
-.advanced-toggle {
-    background: none;
-    border: none;
-    padding: 8px 0;
-    font-size: 14px;
-    color: #666;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    transition: color 0.2s ease;
-    text-align: left;
-}
-
-.advanced-toggle:hover {
-    color: #333;
-}
-
-.toggle-arrow {
-    transition: transform 0.2s ease;
-    font-size: 12px;
-}
-
-.advanced-toggle.expanded .toggle-arrow {
-    transform: rotate(180deg);
-}
-
-.advanced-options {
-    padding-left: 20px;
-    margin-top: 10px;
-    max-height: 200px;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-}
-
-.advanced-options.collapsed {
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    margin-top: 0;
-}
-
-.advanced-options .help-text {
-    font-size: 11px;
-    color: #888;
-    margin-top: 5px;
-    margin-bottom: 0;
-}
-
 .download-mode-section {
     overflow: hidden;
     transition: all 0.3s ease;
