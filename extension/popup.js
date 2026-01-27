@@ -140,33 +140,25 @@ async function initializePopup() {
 
 // Set up download mode UI and indicator
 function setupDownloadModeUI(currentMode) {
-    const expandButton = document.getElementById('expandDownloadModes');
-    const downloadModeSection = document.getElementById('downloadModeSection');
+    const advancedSettings = document.getElementById('advancedSettings');
     const downloadModeIndicator = document.getElementById('downloadModeIndicator');
     
     // Update indicator text and style
     updateDownloadModeIndicator(currentMode);
     
-    // Set up expand/collapse button
-    expandButton.addEventListener('click', () => {
-        const isCollapsed = downloadModeSection.classList.contains('collapsed');
-        
-        if (isCollapsed) {
-            downloadModeSection.classList.remove('collapsed');
-            expandButton.classList.add('expanded');
-            expandButton.textContent = '⚙️ Hide Advanced';
-        } else {
-            downloadModeSection.classList.add('collapsed');
-            expandButton.classList.remove('expanded');
-            expandButton.textContent = '⚙️ Advanced';
-        }
+    // Set up auto-expand when experimental mode is selected
+    const downloadModeRadios = document.querySelectorAll('input[name="downloadMode"]');
+    downloadModeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value !== 'normal') {
+                advancedSettings.open = true;
+            }
+        });
     });
     
-    // Auto-expand if experimental mode is selected
+    // Auto-expand if experimental mode is already selected
     if (currentMode !== 'normal') {
-        downloadModeSection.classList.remove('collapsed');
-        expandButton.classList.add('expanded');
-        expandButton.textContent = '⚙️ Hide Advanced';
+        advancedSettings.open = true;
     }
 }
 
