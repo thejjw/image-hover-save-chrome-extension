@@ -136,6 +136,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ isAnimated: null });
         });
         return true; // Keep message channel open for async response
+    } else if (message.type === 'fetch_webp_for_conversion') {
+        // Fetch full WebP image and return as data URL (bypasses CORS)
+        fetchImageAsDataUrl(message.url).then(dataUrl => {
+            sendResponse({ success: !!dataUrl, dataUrl: dataUrl });
+        }).catch(error => {
+            debug.error('Error fetching WebP image:', error);
+            sendResponse({ success: false, dataUrl: null });
+        });
+        return true; // Keep message channel open for async response
     } else if (message.type === 'ihs:domain_status_changed') {
         // Update badge for the specific tab that sent this message
         const tabId = sender.tab?.id;
@@ -405,6 +414,37 @@ async function checkWebPAnimated(url) {
     } catch (error) {
         debug.warn('Error checking WebP animation status:', error);
         // Return null to indicate we couldn't determine the status
+        return null;
+    }
+}
+
+// Fetch image and convert to data URL (bypasses CORS)
+async function fetchImageAsDataUrl(url) {
+    try {
+        debug.log('Fetching image for conversion (background):', url);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            debug.warn('Failed to fetch image:', response.status);
+            return null;
+        }
+        
+        const blob = await response.blob();
+        
+        // Convert blob to data URL
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => {
+                debug.error('Failed to convert blob to data URL');
+                resolve(null);
+            };
+            reader.readAsDataURL(blob);
+        });
+        
+    } catch (error) {
+        debug.warn('Error fetching image as data URL:', error);
         return null;
     }
 }
