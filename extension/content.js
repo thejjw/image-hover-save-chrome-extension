@@ -858,8 +858,19 @@ async function convertWebpImageToPng(element) {
             return null;
         }
         
-        // Check if the WebP is animated before converting
-        const isAnimated = await isAnimatedWebP(sourceUrl);
+        // Check if the WebP is animated before converting (via background script to bypass CORS)
+        let isAnimated = null;
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'check_webp_animated',
+                url: sourceUrl
+            });
+            isAnimated = response.isAnimated;
+        } catch (error) {
+            debug.warn('Failed to check WebP animation status:', error);
+            isAnimated = null;
+        }
+        
         if (isAnimated === true) {
             debug.log('WebP is animated, skipping PNG conversion to preserve animation');
             return null;
@@ -870,11 +881,28 @@ async function convertWebpImageToPng(element) {
         
         debug.log('Converting static WebP to PNG, source URL:', sourceUrl);
         
-        // Create a new image element to load the WebP
-        const img = new Image();
+        // Fetch the WebP image via background script (bypasses CORS)
+        let imageDataUrl = null;
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'fetch_webp_for_conversion',
+                url: sourceUrl
+            });
+            if (response.success) {
+                imageDataUrl = response.dataUrl;
+            }
+        } catch (error) {
+            debug.warn('Failed to fetch WebP image via background:', error);
+            return null;
+        }
         
-        // Set up cross-origin handling
-        img.crossOrigin = 'anonymous';
+        if (!imageDataUrl) {
+            debug.warn('No data URL received for WebP conversion');
+            return null;
+        }
+        
+        // Create a new image element to load the WebP from data URL
+        const img = new Image();
         
         return new Promise((resolve, reject) => {
             img.onload = function() {
@@ -920,8 +948,8 @@ async function convertWebpImageToPng(element) {
                 resolve(null);
             };
             
-            // Start loading the WebP image
-            img.src = sourceUrl;
+            // Load the WebP image from data URL (no CORS issues)
+            img.src = imageDataUrl;
             
             // Set a timeout to avoid hanging
             setTimeout(() => {
