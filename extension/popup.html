@@ -48,9 +48,10 @@
             <div class="setting-group">
                 <div class="download-mode-header">
                     <span class="download-mode-indicator" id="downloadModeIndicator">Download mode: <strong>Normal</strong></span>
-                    <button type="button" class="expand-button" id="expandDownloadModes">⚙️ Advanced</button>
                 </div>
-                <div class="download-mode-section collapsed" id="downloadModeSection">
+                <details id="advancedSettings">
+                    <summary>⚙️ Advanced</summary>
+                    <div class="download-mode-section">
                     <p class="help-text">Experimental modes for more restrictive sites. YMMV.</p>
                     <label>🧪 Experimental download modes:</label>
                     <div class="radio-group">
@@ -131,7 +132,8 @@
                         <button type="button" class="reset-btn" id="resetBtn">🔄 Reset All Settings</button>
                         <p class="help-text">Reset all settings to default values. This action cannot be undone.</p>
                     </div>
-                </div>
+                    </div>
+                </details>
             </div>
 
             <div class="setting-group">
