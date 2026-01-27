@@ -858,8 +858,19 @@ async function convertWebpImageToPng(element) {
             return null;
         }
         
-        // Check if the WebP is animated before converting
-        const isAnimated = await isAnimatedWebP(sourceUrl);
+        // Check if the WebP is animated before converting (via background script to bypass CORS)
+        let isAnimated = null;
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'check_webp_animated',
+                url: sourceUrl
+            });
+            isAnimated = response.isAnimated;
+        } catch (error) {
+            debug.warn('Failed to check WebP animation status:', error);
+            isAnimated = null;
+        }
+        
         if (isAnimated === true) {
             debug.log('WebP is animated, skipping PNG conversion to preserve animation');
             return null;
