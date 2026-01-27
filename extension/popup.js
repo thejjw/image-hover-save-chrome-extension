@@ -9,7 +9,7 @@
 const EXTENSION_VERSION = '1.4.0';
 
 // Debug flag - set to false to disable all console output
-const DEBUG = false;
+const DEBUG = true;
 
 // Debug console wrapper
 const debug = {
