@@ -1,14 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Image Hover Save",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "Hover over images to quickly save them to your downloads folder",
   "permissions": [
     "downloads",
     "storage",
     "tabs",
     "activeTab",
-    "contextMenus"
+    "contextMenus",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -24,7 +26,8 @@
       "matches": ["<all_urls>"],
       "js": ["content.js"],
       "css": ["content.css"],
-      "run_at": "document_end"
+      "run_at": "document_end",
+      "all_frames": true
     }
   ],
   "action": {
