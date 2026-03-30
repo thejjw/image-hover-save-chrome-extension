@@ -41,6 +41,7 @@ let detectVideo = true;
 let detectSvg = false;
 let detectBackground = false;
 let convertWebpToPng = false;
+let longHideDelay = false;
 
 // Storage helper
 const storage = {
@@ -116,6 +117,7 @@ async function initializeExtension() {
         const bgDetect = await storage.get('ihs_detect_background');
         const webpToPngConvert = await storage.get('ihs_convert_webp_to_png');
         const borderHighlight = await storage.get('ihs_border_highlight_mode');
+        const longHideDelaySetting = await storage.get('ihs_long_hide_delay');
         
         isEnabled = enabled !== false; // Default to true
         hoverDelay = delay || CONFIG.DEFAULT_HOVER_DELAY;
@@ -126,6 +128,7 @@ async function initializeExtension() {
         detectSvg = svgDetect === true; // Default: false
         detectBackground = bgDetect === true; // Default: false
         convertWebpToPng = webpToPngConvert === true; // Default: false
+        longHideDelay = longHideDelaySetting === true; // Default: false
         
         // Check domain exclusions
         await checkDomainExclusion();
@@ -237,54 +240,63 @@ function downloadElement(element) {
         }
         
         // Generate filename
-        const url = new URL(elementUrl, window.location.href);
-        let filename = url.pathname.split('/').pop() || 'media';
+        const urlObj = new URL(elementUrl, window.location.href);
+        let filename = urlObj.pathname.split('/').pop() || 'media';
         
-        // Ensure filename has extension
-        if (!filename.includes('.')) {
+        // Strip invalid extensions (like .php) to assign proper media extensions
+        const validExtensions = /\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|avi|mov|mkv)$/i;
+        if (!validExtensions.test(filename)) {
+            // Remove anything after the last dot if it looks like a fake extension
+            if (filename.includes('.')) {
+                filename = filename.substring(0, filename.lastIndexOf('.'));
+            }
+            if (!filename) filename = 'media';
             filename += '.' + defaultExtension;
         }
         
         // Send download request to background script
         chrome.storage.sync.get(['ihs_download_mode'], async (result) => {
             const downloadMode = result.ihs_download_mode || 'normal';
+            const originalHtml = downloadButton ? downloadButton.innerHTML : '💾';
+
+            // Helper to download a blob locally
+            const downloadBlob = (blob, finalFilename) => {
+                const objectUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = objectUrl;
+                a.download = finalFilename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+
+                if (downloadButton) {
+                    downloadButton.innerHTML = '✅';
+                    setTimeout(() => { 
+                        if (downloadButton) {
+                            downloadButton.innerHTML = originalHtml; 
+                            downloadButton.title = 'Save image';
+                        }
+                    }, 2000);
+                }
+            };
             
             // Check if we should convert WebP to PNG
-            let shouldConvertWebp = false;
             if (convertWebpToPng && elementUrl && 
                 (elementUrl.toLowerCase().includes('.webp') || elementUrl.toLowerCase().includes('webp'))) {
-                shouldConvertWebp = true;
-                debug.log('WebP detected and conversion enabled, will convert to PNG');
-            }
-            
-            // Handle WebP to PNG conversion
-            if (shouldConvertWebp) {
+                debug.log('WebP detected and conversion enabled');
                 try {
                     const pngBlob = await convertWebpImageToPng(element);
                     if (pngBlob) {
-                        // Send PNG blob data to background script
-                        const reader = new FileReader();
-                        reader.onload = function() {
-                            // Update filename to have .png extension
-                            let pngFilename = filename.replace(/\.(webp|WEBP)$/i, '.png');
-                            if (!pngFilename.endsWith('.png')) {
-                                pngFilename = pngFilename.replace(/\.[^.]+$/, '.png');
-                            }
-                            
-                            chrome.runtime.sendMessage({
-                                type: 'download_canvas_image',
-                                dataUrl: reader.result,
-                                filename: pngFilename,
-                                downloadMode: 'webp_conversion'
-                            });
-                        };
-                        reader.readAsDataURL(pngBlob);
+                        let pngFilename = filename.replace(/\.(webp|WEBP)$/i, '.png');
+                        if (!pngFilename.endsWith('.png')) {
+                            pngFilename = pngFilename.replace(/\.[^.]+$/, '.png');
+                        }
+                        downloadBlob(pngBlob, pngFilename);
                         return;
-                    } else {
-                        debug.warn('WebP to PNG conversion failed, falling back to normal download');
                     }
-                } catch (conversionError) {
-                    debug.warn('WebP to PNG conversion error, falling back to normal download:', conversionError);
+                } catch (e) {
+                    debug.warn('WebP conversion failed, falling back', e);
                 }
             }
             
@@ -293,26 +305,40 @@ function downloadElement(element) {
                 try {
                     const canvasBlob = await extractImageToCanvas(element);
                     if (canvasBlob) {
-                        // Send blob data to background script
-                        const reader = new FileReader();
-                        reader.onload = function() {
-                            chrome.runtime.sendMessage({
-                                type: 'download_canvas_image',
-                                dataUrl: reader.result,
-                                filename: filename,
-                                downloadMode: downloadMode
-                            });
-                        };
-                        reader.readAsDataURL(canvasBlob);
+                        downloadBlob(canvasBlob, filename);
+                        return;
+                    }
+                } catch (e) {
+                    debug.warn('Canvas extraction failed, falling back', e);
+                }
+            }
+
+            // Handle new Fetch/Cache mode
+            if (downloadMode === 'cache') {
+                if (downloadButton) {
+                    downloadButton.innerHTML = '⏳';
+                    downloadButton.title = 'Downloading...';
+                }
+
+                try {
+                    const response = await fetch(elementUrl);
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        downloadBlob(blob, filename);
                         return;
                     } else {
-                        debug.warn('Canvas extraction failed, falling back to normal download');
+                        debug.warn('Fetch failed with status:', response.status);
                     }
-                } catch (canvasError) {
-                    debug.warn('Canvas extraction error, falling back to normal download:', canvasError);
+                } catch (e) {
+                    debug.warn('Fetch failed, falling back to background', e);
+                }
+
+                if (downloadButton) {
+                    downloadButton.innerHTML = originalHtml;
                 }
             }
             
+            // Final fallback: Normal background download
             chrome.runtime.sendMessage({
                 type: 'download_image',
                 url: elementUrl,
@@ -639,6 +665,28 @@ function handleMouseEnter(e) {
     if (!isValidType || !isDownloadableElement(element)) {
         return;
     }
+
+    // Trigger dynamic referer rule request for cross-origin media
+    let mediaUrlToSpoof = null;
+    if (element.tagName === 'IMG') mediaUrlToSpoof = element.src;
+    else if (element.tagName === 'VIDEO') mediaUrlToSpoof = element.currentSrc || element.src;
+    
+    if (mediaUrlToSpoof) {
+        requestRefererRule(mediaUrlToSpoof);
+    }
+    
+    // Attempt to remove "nodownload" from video controlslist to allow native downloading
+    if (element.tagName === 'VIDEO' && element.hasAttribute('controlslist')) {
+        const controlsList = element.getAttribute('controlslist');
+        if (controlsList.includes('nodownload')) {
+            const newList = controlsList.replace('nodownload', '').trim();
+            if (newList) {
+                element.setAttribute('controlslist', newList);
+            } else {
+                element.removeAttribute('controlslist');
+            }
+        }
+    }
     
     // Clear any existing timer
     if (hoverTimer) {
@@ -665,7 +713,9 @@ function handleMouseLeave(e) {
         hoverTimer = null;
     }
     
-    // Hide button after a short delay (unless mouse moves to button)
+    const hideDelay = longHideDelay ? 1500 : 100;
+    
+    // Hide button after delay based on settings
     setTimeout(() => {
         if (downloadButton && !downloadButton.matches(':hover') && 
             e.target && typeof e.target.matches === 'function' && !e.target.matches(':hover')) {
@@ -674,13 +724,35 @@ function handleMouseLeave(e) {
                   (!e.target || typeof e.target.matches !== 'function')) {
             hideDownloadButton();
         }
-    }, 100);
+    }, hideDelay);
 }
+
 
 // Handle mouse move for button repositioning
 function handleMouseMove(e) {
     if (currentImage && downloadButton && downloadButton.style.display === 'block') {
         positionButton(currentImage, downloadButton);
+    }
+}
+
+// Request background script to spoof referer for specific media URL
+function requestRefererRule(mediaUrl) {
+    try {
+        const mediaUrlObj = new URL(mediaUrl, window.location.href);
+        const mediaHost = mediaUrlObj.hostname;
+        const currentHost = window.location.hostname;
+        
+        // Only request if cross-origin and not a data URL
+        if (mediaHost && mediaHost !== currentHost && !mediaUrl.startsWith('data:')) {
+            debug.log('Requesting referer spoofing for:', mediaHost);
+            chrome.runtime.sendMessage({
+                type: 'ihs:request_referer_rule',
+                mediaHost: mediaHost,
+                referer: window.location.origin + '/'
+            }).catch(() => {});
+        }
+    } catch (e) {
+        debug.warn('Error parsing URL for referer rule:', e);
     }
 }
 
@@ -698,6 +770,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         if (changes.ihs_hover_delay) {
             hoverDelay = changes.ihs_hover_delay.newValue || CONFIG.DEFAULT_HOVER_DELAY;
             debug.log('Hover delay changed:', hoverDelay);
+        }
+
+        if (changes.ihs_long_hide_delay) {
+            longHideDelay = changes.ihs_long_hide_delay.newValue === true;
+            debug.log('Long hide delay changed:', longHideDelay);
         }
         
         if (changes.ihs_convert_webp_to_png) {

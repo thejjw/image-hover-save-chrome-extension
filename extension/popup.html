@@ -57,11 +57,11 @@
                     <div class="radio-group">
                         <label class="radio-label">
                             <input type="radio" name="downloadMode" id="downloadModeNormal" value="normal" checked>
-                            <span>Normal download (default)</span>
+                            <span>Normal download (using background worker)</span>
                         </label>
                         <label class="radio-label">
                             <input type="radio" name="downloadMode" id="downloadModeCache" value="cache">
-                            <span>Try cache-based downloads</span>
+                            <span title="Bypasses hotlink restrictions by fetching via current page">Try fetch-based downloads</span>
                         </label>
                         <label class="radio-label">
                             <input type="radio" name="downloadMode" id="downloadModeCanvas" value="canvas">
@@ -121,6 +121,14 @@
                             <span>Convert WebP to PNG</span>
                         </label>
                         <p class="help-text">Automatically convert WebP images to PNG format for better compatibility</p>
+                    </div>
+
+                    <div class="settings-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="longHideDelay">
+                            <span>Use long hide delay (1.5s)</span>
+                        </label>
+                        <p class="help-text">Prevents button from disappearing instantly on problematic video players</p>
                     </div>
                     
                     <div class="exclusion-controls">

@@ -18,6 +18,9 @@ const CONFIG = {
     DEFAULT_HOVER_DELAY: 1500
 };
 
+let dynamicRuleIdCount = 1000;
+const hostnameToRuleId = new Map();
+
 // Helper: update badge for specific tab
 function updateBadge(disabled, excluded = false, tabId = null) {
     const text = disabled ? 'OFF' : (excluded ? 'EXCL' : '');
@@ -72,6 +75,15 @@ chrome.runtime.onInstalled.addListener(() => {
     });
     
     debug.log('Extension installed, default settings applied');
+    
+    // Clear all existing dynamic rules on install to start fresh
+    chrome.declarativeNetRequest.getDynamicRules((rules) => {
+        const ruleIds = rules.map(r => r.id);
+        chrome.declarativeNetRequest.updateDynamicRules({
+            removeRuleIds: ruleIds
+        });
+        debug.log('Stale dynamic rules cleared on install');
+    });
 });
 
 // On startup, set badge state for all tabs
@@ -84,6 +96,17 @@ chrome.runtime.onStartup.addListener(() => {
             });
         });
         debug.log('Extension startup, badge state set for all tabs');
+    });
+
+    // Clear session-specific dynamic rules on startup
+    chrome.declarativeNetRequest.getDynamicRules((rules) => {
+        const ruleIds = rules.map(r => r.id);
+        if (ruleIds.length > 0) {
+            chrome.declarativeNetRequest.updateDynamicRules({
+                removeRuleIds: ruleIds
+            });
+            debug.log('Stale dynamic rules cleared on startup');
+        }
     });
 });
 
@@ -156,8 +179,50 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 debug.log(`Badge updated for tab ${tabId}: disabled=${disabled}, excluded=${excluded}`);
             });
         }
+    } else if (message.type === 'ihs:request_referer_rule') {
+        addRefererRule(message.mediaHost, message.referer).catch(e => {
+            debug.error('Failed to update referer rule:', e);
+        });
     }
 });
+
+// Dynamic rule management for referer spoofing
+async function addRefererRule(mediaHost, referer) {
+    try {
+        if (hostnameToRuleId.has(mediaHost)) return;
+
+        const id = dynamicRuleIdCount++;
+        hostnameToRuleId.set(mediaHost, id);
+
+        const rule = {
+            id: id,
+            priority: 1,
+            action: {
+                type: 'modifyHeaders',
+                requestHeaders: [
+                    { header: 'referer', operation: 'set', value: referer },
+                    { header: 'origin', operation: 'remove' }
+                ],
+                responseHeaders: [
+
+                    { header: 'access-control-allow-origin', operation: 'set', value: '*' },
+                    { header: 'access-control-allow-headers', operation: 'set', value: '*' }
+                ]
+            },
+            condition: {
+                urlFilter: mediaHost,
+                resourceTypes: ['main_frame', 'sub_frame', 'xmlhttprequest', 'media', 'image', 'other']
+            }
+        };
+
+        await chrome.declarativeNetRequest.updateDynamicRules({
+            addRules: [rule]
+        });
+        debug.log(`Dynamic referer rule added for host: ${mediaHost} (ID: ${id}) with referer: ${referer}`);
+    } catch (e) {
+        debug.error(`Error adding dynamic referer rule for ${mediaHost}:`, e);
+    }
+}
 
 // Download image function
 async function downloadImage(url, filename, downloadMode = 'normal') {
@@ -167,36 +232,13 @@ async function downloadImage(url, filename, downloadMode = 'normal') {
         
         let downloadUrl = url;
         
-        // Handle different download modes
-        if (downloadMode === 'cache') {
-            try {
-                const cacheBlob = await getImageFromCache(url);
-                if (cacheBlob) {
-                    downloadUrl = URL.createObjectURL(cacheBlob);
-                    debug.log('Using cached image for download');
-                }
-            } catch (cacheError) {
-                debug.warn('Cache retrieval failed, falling back to direct URL:', cacheError);
-            }
-        } else if (downloadMode === 'canvas') {
-            // For canvas mode, we need to coordinate with content script
-            debug.log('Canvas extraction mode not yet implemented for background downloads');
-            // This would require more complex coordination with content script
-        }
-        
         const downloadId = await chrome.downloads.download({
-            url: downloadUrl,
+            url: url,
             filename: cleanFilename,
             saveAs: false // Save to default downloads folder without dialog
         });
         
         debug.log(`Image download started: ${cleanFilename} (ID: ${downloadId}) - Mode: ${downloadMode}`);
-        
-        // Clean up blob URL if we created one
-        if (downloadUrl !== url && downloadUrl.startsWith('blob:')) {
-            setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
-        }
-        
     } catch (error) {
         debug.error('Download failed:', error);
         
