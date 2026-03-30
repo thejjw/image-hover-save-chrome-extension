@@ -36,6 +36,8 @@ _(Note: The Chrome Web Store version may not always have the latest updates.)_
 - `storage`: Required to save your preferences and settings
 - `tabs`: Required for cross-tab preference communication and badge indicators
 - `activeTab`: Required to interact with the current webpage
+- `declarativeNetRequest`: Required to modify network request headers for reliable cross-origin downloads
+- `declarativeNetRequestWithHostAccess`: Required to apply network modifications dynamically on accessed hosts
 - `<all_urls>`: Required to work on all websites
 - `contextMenus`: Required to add a link-only right-click menu entry
 
