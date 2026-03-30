@@ -6,7 +6,7 @@
 // - JSZip v3.10.1 (MIT) - Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
 
 // Extension version - update this when releasing new versions
-const EXTENSION_VERSION = '1.4.2';
+const EXTENSION_VERSION = '1.5.0';
 
 // Debug flag - set to false to disable all console output
 const DEBUG = false;
@@ -82,6 +82,7 @@ async function initializePopup() {
         const allowedExtensions = await storage.get('ihs_allowed_extensions');
         const convertWebpToPng = await storage.get('ihs_convert_webp_to_png');
         const borderHighlightMode = await storage.get('ihs_border_highlight_mode');
+        const longHideDelaySetting = await storage.get('ihs_long_hide_delay');
         
         // Set toggle state
         const enabledToggle = document.getElementById('enabledToggle');
@@ -122,6 +123,9 @@ async function initializePopup() {
         
         // Set WebP to PNG conversion option
         document.getElementById('convertWebpToPng').checked = convertWebpToPng === true; // Default: false
+        
+        // Set long hide delay option
+        document.getElementById('longHideDelay').checked = longHideDelaySetting === true;
         
         // Set up additional event listeners
         setupImageDetectionListeners();
@@ -361,6 +365,20 @@ function setupImageDetectionListeners() {
             await notifyContentScriptSettingsChanged();
         } else {
             showStatus('Failed to save WebP conversion setting', 'error');
+            e.target.checked = !e.target.checked;
+        }
+    });
+
+    // Long hide delay checkbox
+    const longHideDelay = document.getElementById('longHideDelay');
+    longHideDelay.addEventListener('change', async (e) => {
+        const success = await storage.set('ihs_long_hide_delay', e.target.checked);
+        if (success) {
+            showStatus(e.target.checked ? 'Long hide delay enabled' : 'Long hide delay disabled');
+            await notifyContentScriptSettingsChanged();
+        } else {
+            showStatus('Failed to save delay setting', 'error');
+            e.target.checked = !e.target.checked;
         }
     });
     
@@ -384,6 +402,7 @@ async function getCurrentSettings() {
         const convertWebpToPng = await storage.get('ihs_convert_webp_to_png');
         const minImageSize = await storage.get('ihs_min_image_size');
         const borderHighlightMode = await storage.get('ihs_border_highlight_mode');
+        const longHideDelay = await storage.get('ihs_long_hide_delay');
         
         return {
             detectImg: detectImg !== false, // Default: true
@@ -391,6 +410,7 @@ async function getCurrentSettings() {
             detectBackground: detectBackground === true, // Default: false
             detectVideo: detectVideo !== false, // Default: true
             convertWebpToPng: convertWebpToPng === true, // Default: false
+            longHideDelay: longHideDelay === true, // Default: false
             borderHighlightMode: borderHighlightMode || CONFIG.DEFAULT_BORDER_HIGHLIGHT, // Default: 'off'
             minImageSize: minImageSize || CONFIG.MIN_IMAGE_SIZE,
             allowedExtensions: (allowedExtensions || CONFIG.DEFAULT_EXTENSIONS_STRING)
